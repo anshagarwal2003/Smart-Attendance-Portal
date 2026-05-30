@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: smart-attendance-web
+    env: docker
+    plan: starter
+    autoDeploy: true
+    disk:
+      name: smart-attendance-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: DATA_DIR
+        value: /data
+      - key: FLASK_DEBUG
+        value: "0"
+      - key: SECRET_KEY
+        generateValue: true

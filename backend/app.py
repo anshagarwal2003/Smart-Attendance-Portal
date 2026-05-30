@@ -18,10 +18,13 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 
 
-app = Flask(__name__)
-app.secret_key = "smart-attendance-secret"
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+DATA_DIR = os.environ.get("DATA_DIR", BASE_DIR)
 
-DB_NAME = "smart_attendance.db"
+app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", "smart-attendance-secret")
+
+DB_NAME = os.environ.get("DATABASE_PATH", os.path.join(DATA_DIR, "smart_attendance.db"))
 
 ATTENDANCE_WINDOW_MINUTES = 15
 
@@ -36,9 +39,9 @@ TEACHER_ALLOWED_RADIUS_METERS = 100000
 TEACHER_ACTIVATION_LIMIT_MINUTES = 15
 FACE_MATCH_THRESHOLD = 0.50
 
-PROOF_FOLDER = "proof_images"
-STUDENT_IMAGE_FOLDER = "student_images"
-EXPORT_FOLDER = "exports"
+PROOF_FOLDER = os.environ.get("PROOF_FOLDER", os.path.join(DATA_DIR, "proof_images"))
+STUDENT_IMAGE_FOLDER = os.environ.get("STUDENT_IMAGE_FOLDER", os.path.join(DATA_DIR, "student_images"))
+EXPORT_FOLDER = os.environ.get("EXPORT_FOLDER", os.path.join(DATA_DIR, "exports"))
 
 for folder in [PROOF_FOLDER, STUDENT_IMAGE_FOLDER, EXPORT_FOLDER]:
     os.makedirs(folder, exist_ok=True)
@@ -1701,6 +1704,10 @@ def logout():
     return redirect(url_for("home"))
 
 
+init_db()
+
+
 if __name__ == "__main__":
-    init_db()
-    app.run(host="0.0.0.0", port=8000, debug=True)
+    port = int(os.environ.get("PORT", 8000))
+    debug = os.environ.get("FLASK_DEBUG", "0") == "1"
+    app.run(host="0.0.0.0", port=port, debug=debug)
