@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="login-page">
+    <div class="login-left">
+        <p class="tagline">ADMIN ACCESS</p>
+        <h1>Admin Login</h1>
+        <p>
+            Manage teachers, students, courses, sections, timetable and attendance system records from one secure panel.
+        </p>
+
+        <a class="btn secondary-btn" href="/">Back to Home</a>
+    </div>
+
+    <div class="login-card">
+        <div class="login-icon">A</div>
+
+        <h2>Welcome Admin</h2>
+        <p class="muted-text">Enter your admin credentials to continue.</p>
+
+        {% if error %}
+            <div class="error-box">{{ error }}</div>
+        {% endif %}
+
+        <form method="post">
+            <div class="form-group">
+                <label>Admin ID</label>
+                <input type="text" name="admin_id" placeholder="Enter Admin ID" required>
+            </div>
+
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" name="password" placeholder="Enter Password" required>
+            </div>
+
+            <button class="btn primary-btn login-btn" type="submit">Login as Admin</button>
+        </form>
+
+        <p class="login-help">Default: admin / admin123</p>
+    </div>
+</div>
+{% endblock %}

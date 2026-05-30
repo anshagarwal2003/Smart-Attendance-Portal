@@ -1,0 +1,15 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+smart_attendance.db
+
+proof_images/
+exports/
+
+.env
+.DS_Store
+Thumbs.db
+*.log

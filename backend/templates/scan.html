@@ -1,0 +1,416 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dashboard-header">
+    <div>
+        <p class="tagline">Face + Real Blink Verification</p>
+        <h1>Mark Attendance</h1>
+        <p class="muted-text">
+            Subject: <b>{{ active_session.subject }}</b> |
+            Section: <b>{{ active_session.section }}</b> |
+            Time: <b>{{ active_session.class_time }}</b>
+        </p>
+    </div>
+
+    <div>
+        <a class="btn secondary-btn" href="/student-dashboard">Back</a>
+    </div>
+</div>
+
+<div class="scan-layout">
+    <div class="card scan-camera-card">
+        <div class="card-title-row">
+            <h2>Camera Scan</h2>
+            <span id="blinkBadge" class="status-pill waiting">BLINK REQUIRED</span>
+        </div>
+
+        <div class="camera-box real-blink-camera">
+            <video id="video" autoplay playsinline muted></video>
+            <canvas id="canvas" style="display:none;"></canvas>
+
+            <div class="blink-overlay">
+                <h2>Real Blink Verification</h2>
+                <p id="blinkText">Camera starting...</p>
+                <h1 id="blinkCount">WAIT</h1>
+            </div>
+        </div>
+
+        <div class="scan-note">
+            <b>Instructions:</b>
+            Face camera ke saamne rakho. Pehle aankh normal open rakho, phir ek baar blink karo. Blink verify hone ke baad attendance button enable hoga.
+        </div>
+    </div>
+
+    <div class="card scan-control-card">
+        <div class="card-title-row">
+            <h2>Verification</h2>
+            <span class="status-pill waiting">STEP 2</span>
+        </div>
+
+        <div class="info-grid">
+            <div>
+                <span>Student</span>
+                <b>{{ session.student_name }}</b>
+            </div>
+
+            <div>
+                <span>Roll No</span>
+                <b>{{ session.roll_no }}</b>
+            </div>
+
+            <div>
+                <span>Attendance Till</span>
+                <b>{{ active_session.attendance_end }}</b>
+            </div>
+
+            <div>
+                <span>Session</span>
+                <b>#{{ active_session.id }}</b>
+            </div>
+        </div>
+
+        <button id="blinkBtn" class="btn secondary-btn scan-btn" type="button" onclick="startRealBlinkVerification()">
+            Start Real Blink Verification
+        </button>
+
+        <div class="form-group">
+            <label>Session Code</label>
+            <input type="text" id="sessionCode" placeholder="Enter code given by teacher" autocomplete="off">
+        </div>
+
+        <button id="markBtn" class="btn primary-btn scan-btn" type="button" onclick="markAttendance()" disabled>
+            Verify & Mark Attendance
+        </button>
+
+        <div id="statusBox" class="scan-status-box">
+            Starting camera...
+        </div>
+
+        <div id="resultBox" class="scan-result-box" style="display:none;"></div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
+<script>
+let video = document.getElementById("video");
+let canvas = document.getElementById("canvas");
+let statusBox = document.getElementById("statusBox");
+let resultBox = document.getElementById("resultBox");
+let blinkBtn = document.getElementById("blinkBtn");
+let markBtn = document.getElementById("markBtn");
+let blinkText = document.getElementById("blinkText");
+let blinkCount = document.getElementById("blinkCount");
+let blinkBadge = document.getElementById("blinkBadge");
+
+let currentLat = 26.9124;
+let currentLng = 75.7873;
+
+let cameraStarted = false;
+let blinkVerified = false;
+let blinkChecking = false;
+
+let eyeWasOpen = false;
+let eyeWasClosed = false;
+let blinkDetected = false;
+
+let lastEAR = 0;
+let faceDetected = false;
+
+let faceMesh = null;
+let camera = null;
+
+const EAR_CLOSED_THRESHOLD = 0.20;
+const EAR_OPEN_THRESHOLD = 0.25;
+
+function distance2D(a, b) {
+    let dx = a.x - b.x;
+    let dy = a.y - b.y;
+    return Math.sqrt(dx * dx + dy * dy);
+}
+
+function calculateEAR(landmarks, eye) {
+    let p1 = landmarks[eye[0]];
+    let p2 = landmarks[eye[1]];
+    let p3 = landmarks[eye[2]];
+    let p4 = landmarks[eye[3]];
+    let p5 = landmarks[eye[4]];
+    let p6 = landmarks[eye[5]];
+
+    let vertical1 = distance2D(p2, p6);
+    let vertical2 = distance2D(p3, p5);
+    let horizontal = distance2D(p1, p4);
+
+    if (horizontal === 0) {
+        return 0;
+    }
+
+    return (vertical1 + vertical2) / (2.0 * horizontal);
+}
+
+function onFaceResults(results) {
+    if (!blinkChecking) {
+        return;
+    }
+
+    if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) {
+        faceDetected = false;
+        blinkText.innerHTML = "Face not detected. Look at camera.";
+        blinkCount.innerHTML = "NO FACE";
+        statusBox.innerHTML = "Face not detected. Keep your face clearly visible.";
+        return;
+    }
+
+    faceDetected = true;
+
+    let landmarks = results.multiFaceLandmarks[0];
+
+    let leftEye = [33, 160, 158, 133, 153, 144];
+    let rightEye = [362, 385, 387, 263, 373, 380];
+
+    let leftEAR = calculateEAR(landmarks, leftEye);
+    let rightEAR = calculateEAR(landmarks, rightEye);
+
+    let avgEAR = (leftEAR + rightEAR) / 2.0;
+    lastEAR = avgEAR;
+
+    if (!eyeWasOpen && avgEAR > EAR_OPEN_THRESHOLD) {
+        eyeWasOpen = true;
+        blinkText.innerHTML = "Eyes open detected. Now blink once.";
+        blinkCount.innerHTML = "BLINK";
+        statusBox.innerHTML = "Eyes open detected. Please blink once.";
+        return;
+    }
+
+    if (eyeWasOpen && !eyeWasClosed && avgEAR < EAR_CLOSED_THRESHOLD) {
+        eyeWasClosed = true;
+        blinkText.innerHTML = "Eyes closed detected. Open your eyes.";
+        blinkCount.innerHTML = "OPEN";
+        statusBox.innerHTML = "Blink close detected. Open your eyes.";
+        return;
+    }
+
+    if (eyeWasOpen && eyeWasClosed && avgEAR > EAR_OPEN_THRESHOLD) {
+        blinkDetected = true;
+        blinkVerified = true;
+        blinkChecking = false;
+
+        blinkBadge.className = "status-pill active";
+        blinkBadge.innerHTML = "BLINK VERIFIED";
+
+        blinkText.innerHTML = "Real eye blink verified.";
+        blinkCount.innerHTML = "DONE";
+
+        statusBox.innerHTML = "Real blink verified. Enter session code and mark attendance.";
+
+        blinkBtn.disabled = false;
+        markBtn.disabled = false;
+        return;
+    }
+
+    if (eyeWasOpen && !eyeWasClosed) {
+        blinkText.innerHTML = "Blink your eyes now.";
+        blinkCount.innerHTML = "BLINK";
+        statusBox.innerHTML = "Waiting for eye close. EAR: " + avgEAR.toFixed(3);
+    }
+}
+
+async function startCameraAndFaceMesh() {
+    try {
+        if (typeof FaceMesh === "undefined" || typeof Camera === "undefined") {
+            statusBox.innerHTML = "MediaPipe library not loaded. Internet ON karo aur page refresh karo.";
+            blinkText.innerHTML = "MediaPipe not loaded.";
+            blinkCount.innerHTML = "ERROR";
+            return;
+        }
+
+        faceMesh = new FaceMesh({
+            locateFile: function(file) {
+                return "https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/" + file;
+            }
+        });
+
+        faceMesh.setOptions({
+            maxNumFaces: 1,
+            refineLandmarks: true,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+
+        faceMesh.onResults(onFaceResults);
+
+        camera = new Camera(video, {
+            onFrame: async function() {
+                await faceMesh.send({ image: video });
+            },
+            width: 640,
+            height: 480
+        });
+
+        await camera.start();
+
+        cameraStarted = true;
+        statusBox.innerHTML = "Camera ready. Click Start Real Blink Verification.";
+        blinkText.innerHTML = "Camera ready.";
+        blinkCount.innerHTML = "READY";
+
+    } catch (error) {
+        cameraStarted = false;
+        statusBox.innerHTML = "Camera not started. Camera permission allow karo ya localhost/HTTPS use karo.";
+        blinkText.innerHTML = "Camera permission issue.";
+        blinkCount.innerHTML = "ERROR";
+    }
+}
+
+function getLocation() {
+    if (!navigator.geolocation) {
+        currentLat = 26.9124;
+        currentLng = 75.7873;
+        return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+        function(position) {
+            currentLat = position.coords.latitude;
+            currentLng = position.coords.longitude;
+        },
+        function(error) {
+            currentLat = 26.9124;
+            currentLng = 75.7873;
+        },
+        {
+            enableHighAccuracy: true,
+            timeout: 8000,
+            maximumAge: 0
+        }
+    );
+}
+
+function startRealBlinkVerification() {
+    if (!cameraStarted) {
+        statusBox.innerHTML = "Camera ready nahi hai. Camera permission allow karo aur page refresh karo.";
+        return;
+    }
+
+    blinkVerified = false;
+    blinkChecking = true;
+    eyeWasOpen = false;
+    eyeWasClosed = false;
+    blinkDetected = false;
+    faceDetected = false;
+
+    markBtn.disabled = true;
+    blinkBtn.disabled = true;
+
+    blinkBadge.className = "status-pill waiting";
+    blinkBadge.innerHTML = "CHECKING";
+
+    blinkText.innerHTML = "Look at camera. Keep eyes open.";
+    blinkCount.innerHTML = "OPEN";
+
+    statusBox.innerHTML = "Real blink detection started. Face camera ke saamne rakho.";
+}
+
+function captureImage() {
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+
+    let context = canvas.getContext("2d");
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    return canvas.toDataURL("image/jpeg", 0.90);
+}
+
+async function markAttendance() {
+    let sessionCode = document.getElementById("sessionCode").value.trim();
+
+    if (!blinkVerified) {
+        statusBox.innerHTML = "Please complete real blink verification first.";
+        return;
+    }
+
+    if (!sessionCode) {
+        statusBox.innerHTML = "Please enter session code.";
+        return;
+    }
+
+    if (!cameraStarted || !video.videoWidth || !video.videoHeight) {
+        statusBox.innerHTML = "Camera not ready. Please refresh page.";
+        return;
+    }
+
+    markBtn.disabled = true;
+    markBtn.innerHTML = "Verifying...";
+    statusBox.innerHTML = "Capturing face and verifying attendance...";
+
+    resultBox.style.display = "none";
+    resultBox.innerHTML = "";
+
+    let imageData = captureImage();
+
+    try {
+        let response = await fetch("/api/mark-attendance", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                session_id: "{{ active_session.id }}",
+                session_code: sessionCode,
+                image_data: imageData,
+                lat: currentLat,
+                lng: currentLng,
+                blink_verified: true
+            })
+        });
+
+        let data = await response.json();
+
+        if (data.success) {
+            statusBox.innerHTML = "Attendance marked successfully.";
+
+            resultBox.style.display = "block";
+            resultBox.className = "scan-result-box success-result";
+            resultBox.innerHTML = `
+                <h3>Attendance Verified</h3>
+                <p><b>Name:</b> ${data.name}</p>
+                <p><b>Roll No:</b> ${data.roll_no}</p>
+                <p><b>Subject:</b> ${data.subject}</p>
+                <p><b>Distance:</b> ${data.distance} meters</p>
+                <p><b>Face Status:</b> ${data.face_status}</p>
+                <p><b>Blink Status:</b> Real Blink Verified</p>
+                <a href="${data.proof_image}" target="_blank">
+                    <img class="scan-proof-img" src="${data.proof_image}" alt="Proof Image">
+                </a>
+            `;
+        } else {
+            statusBox.innerHTML = data.message;
+
+            resultBox.style.display = "block";
+            resultBox.className = "scan-result-box error-result";
+            resultBox.innerHTML = `
+                <h3>Verification Failed</h3>
+                <p>${data.message}</p>
+            `;
+        }
+
+    } catch (error) {
+        statusBox.innerHTML = "Server error. Please try again.";
+
+        resultBox.style.display = "block";
+        resultBox.className = "scan-result-box error-result";
+        resultBox.innerHTML = `
+            <h3>Server Error</h3>
+            <p>Please refresh page and try again.</p>
+        `;
+    }
+
+    markBtn.disabled = false;
+    markBtn.innerHTML = "Verify & Mark Attendance";
+}
+
+startCameraAndFaceMesh();
+getLocation();
+</script>
+{% endblock %}

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dashboard-header">
+    <div>
+        <p class="tagline">Admin Panel</p>
+        <h1>Add Student</h1>
+        <p class="muted-text">Register a new student with course-section, login details and face photo.</p>
+    </div>
+
+    <div>
+        <a class="btn secondary-btn" href="/admin-dashboard">Back</a>
+    </div>
+</div>
+
+<div class="form-card">
+    {% if error %}
+        <div class="error-box">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data">
+        <div class="form-group">
+            <label>Student Name</label>
+            <input type="text" name="name" placeholder="Example: Rahul Sharma" required>
+        </div>
+
+        <div class="form-group">
+            <label>Roll Number / College ID</label>
+            <input type="text" name="roll_no" placeholder="Example: 23BCON2214" required>
+        </div>
+
+        <div class="form-group">
+            <label>Password</label>
+            <input type="text" name="password" placeholder="Example: 1234" required>
+        </div>
+
+        <div class="form-group">
+            <label>Course - Section</label>
+            <input type="text" name="section" placeholder="Example: CSE-A, CSE-B, MTECH-A, LAW-A" required>
+            <p class="small-help">Use format like CSE-A, MTECH-A, LAW-A. Course will be created automatically.</p>
+        </div>
+
+        <div class="form-group">
+            <label>Student Face Photo</label>
+            <input type="file" name="photo" accept=".jpg,.jpeg,.png,.webp" required>
+            <p class="small-help">Photo filename will be saved using Roll Number automatically.</p>
+        </div>
+
+        <button class="btn primary-btn" type="submit">Add Student</button>
+    </form>
+</div>
+{% endblock %}

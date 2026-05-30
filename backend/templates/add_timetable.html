@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dashboard-header">
+    <div>
+        <p class="tagline">Admin Panel</p>
+        <h1>Add Timetable</h1>
+        <p class="muted-text">Assign subject, section, class time and teacher.</p>
+    </div>
+
+    <div>
+        <a class="btn secondary-btn" href="/admin-dashboard">Back</a>
+    </div>
+</div>
+
+<div class="form-card">
+    {% if error %}
+        <div class="error-box">{{ error }}</div>
+    {% endif %}
+
+    <form method="post">
+        <div class="form-group">
+            <label>Day</label>
+            <select name="day" required>
+                <option value="">Select Day</option>
+                <option value="Monday">Monday</option>
+                <option value="Tuesday">Tuesday</option>
+                <option value="Wednesday">Wednesday</option>
+                <option value="Thursday">Thursday</option>
+                <option value="Friday">Friday</option>
+                <option value="Saturday">Saturday</option>
+                <option value="Sunday">Sunday</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Subject</label>
+            <input type="text" name="subject" placeholder="Example: PYTHON, JAVA, DBMS" required>
+        </div>
+
+        <div class="form-group">
+            <label>Start Time</label>
+            <input type="time" name="start_time" required>
+        </div>
+
+        <div class="form-group">
+            <label>End Time</label>
+            <input type="time" name="end_time" required>
+        </div>
+
+        <div class="form-group">
+            <label>Course - Section</label>
+            <input type="text" name="section" placeholder="Example: CSE-A, MTECH-A, LAW-A" required>
+            <p class="small-help">Use same section format as students. Example: MTECH-A</p>
+        </div>
+
+        <div class="form-group">
+            <label>Teacher</label>
+            <select name="teacher_id" required>
+                <option value="">Select Teacher</option>
+
+                {% for teacher in teachers %}
+                    <option value="{{ teacher.id }}">{{ teacher.name }} ({{ teacher.teacher_id }})</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <button class="btn primary-btn" type="submit">Add Timetable</button>
+    </form>
+</div>
+{% endblock %}

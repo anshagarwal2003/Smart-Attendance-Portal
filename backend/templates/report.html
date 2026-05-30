@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dashboard-header">
+    <div>
+        <p class="tagline">Attendance Report</p>
+        <h1>{{ active_session.subject }} Report</h1>
+        <p class="muted-text">
+            Section {{ active_session.section }} | {{ active_session.class_date }} | {{ active_session.class_time }}
+        </p>
+    </div>
+
+    <div>
+        <a class="btn secondary-btn" href="/teacher-subject/{{ active_session.section }}/{{ active_session.subject }}">Back</a>
+    </div>
+</div>
+
+{% set total_students = attendance_rows|length %}
+{% set present_count = namespace(value=0) %}
+{% set absent_count = namespace(value=0) %}
+
+{% for row in attendance_rows %}
+    {% if row.status == "PRESENT" %}
+        {% set present_count.value = present_count.value + 1 %}
+    {% elif row.status == "ABSENT" %}
+        {% set absent_count.value = absent_count.value + 1 %}
+    {% endif %}
+{% endfor %}
+
+{% if total_students > 0 %}
+    {% set attendance_percentage = ((present_count.value / total_students) * 100)|round(2) %}
+{% else %}
+    {% set attendance_percentage = 0 %}
+{% endif %}
+
+<div class="summary-grid">
+    <div class="summary-box total-box">
+        <span>Total Students</span>
+        <h2>{{ total_students }}</h2>
+    </div>
+
+    <div class="summary-box present-box">
+        <span>Present</span>
+        <h2>{{ present_count.value }}</h2>
+    </div>
+
+    <div class="summary-box absent-box">
+        <span>Absent</span>
+        <h2>{{ absent_count.value }}</h2>
+    </div>
+
+    <div class="summary-box percent-box">
+        <span>Attendance</span>
+        <h2>{{ attendance_percentage }}%</h2>
+    </div>
+</div>
+
+<div class="card report-info-card">
+    <div class="card-title-row">
+        <h2>Class Details</h2>
+
+        {% if active_session.status == "ACTIVE" %}
+            <span class="status-pill active">ACTIVE</span>
+        {% elif active_session.status == "CLOSED" %}
+            <span class="status-pill over">CLASS OVER</span>
+        {% elif active_session.status == "NOT_HELD" %}
+            <span class="status-pill missed">NOT HELD</span>
+        {% else %}
+            <span class="status-pill waiting">{{ active_session.status }}</span>
+        {% endif %}
+    </div>
+
+    <div class="info-grid">
+        <div>
+            <span>Subject</span>
+            <b>{{ active_session.subject }}</b>
+        </div>
+
+        <div>
+            <span>Section</span>
+            <b>{{ active_session.section }}</b>
+        </div>
+
+        <div>
+            <span>Date</span>
+            <b>{{ active_session.class_date }}</b>
+        </div>
+
+        <div>
+            <span>Class Time</span>
+            <b>{{ active_session.class_time }}</b>
+        </div>
+
+        <div>
+            <span>Activated At</span>
+            <b>{{ active_session.activated_at }}</b>
+        </div>
+
+        <div>
+            <span>Attendance Till</span>
+            <b>{{ active_session.attendance_end }}</b>
+        </div>
+    </div>
+
+    <div class="action-row">
+        <a class="btn primary-btn" href="/export-excel/{{ active_session.id }}">Export Excel</a>
+        <a class="btn secondary-btn" href="/teacher-section/{{ active_session.section }}">Open Section</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-title-row">
+        <h2>Student Attendance</h2>
+        <span class="status-pill active">{{ total_students }} Records</span>
+    </div>
+
+    {% if attendance_rows %}
+    <div class="table-wrapper">
+        <table class="report-table">
+            <tr>
+                <th>S.No</th>
+                <th>Name</th>
+                <th>Roll No</th>
+                <th>Status</th>
+                <th>Time</th>
+                <th>Distance</th>
+                <th>Proof</th>
+            </tr>
+
+            {% for row in attendance_rows %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td><b>{{ row.name }}</b></td>
+                <td>{{ row.roll_no }}</td>
+
+                <td>
+                    {% if row.status == "PRESENT" %}
+                        <span class="report-status present-status">PRESENT</span>
+                    {% else %}
+                        <span class="report-status absent-status">ABSENT</span>
+                    {% endif %}
+                </td>
+
+                <td>{{ row.time }}</td>
+
+                <td>
+                    {% if row.distance_meters != "-" %}
+                        {{ row.distance_meters }} m
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+
+                <td>
+                    {% if row.proof_image != "-" %}
+                        <a href="/proof_images/{{ row.proof_image }}" target="_blank">
+                            <img class="proof-img" src="/proof_images/{{ row.proof_image }}" alt="Proof">
+                        </a>
+                    {% else %}
+                        <span class="muted-text">No Proof</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+    {% else %}
+        <p class="muted-text">No attendance records found.</p>
+    {% endif %}
+</div>
+{% endblock %}

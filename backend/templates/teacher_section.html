@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dashboard-header">
+    <div>
+        <p class="tagline">Teacher Panel</p>
+        <h1>{{ section }}</h1>
+        <p class="muted-text">
+            View subjects, start today's class and open reports for this section.
+        </p>
+    </div>
+
+    <div>
+        <a class="btn secondary-btn" href="/teacher-dashboard">Back to Dashboard</a>
+    </div>
+</div>
+
+<div class="card teacher-section-hero">
+    <div class="card-title-row">
+        <h2>Section Overview</h2>
+        <span class="status-pill active">{{ subjects|length }} Subjects</span>
+    </div>
+
+    <div class="info-grid">
+        <div>
+            <span>Section</span>
+            <b>{{ section }}</b>
+        </div>
+
+        <div>
+            <span>Today</span>
+            <b>{{ today }}</b>
+        </div>
+
+        <div>
+            <span>Total Subjects</span>
+            <b>{{ subjects|length }}</b>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-title-row">
+        <h2>Subjects</h2>
+        <span class="status-pill active">Open History</span>
+    </div>
+
+    {% if subjects %}
+    <div class="subject-click-grid">
+        {% for cls in subjects %}
+        <a class="subject-click-card final-subject-card" href="/teacher-subject/{{ section }}/{{ cls.subject }}">
+            <div>
+                <p class="tagline">Subject</p>
+                <h2>{{ cls.subject }}</h2>
+                <p>{{ section }}</p>
+            </div>
+
+            <span>History →</span>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+        <div class="empty-state">
+            <h3>No subject found for today.</h3>
+            <p>Please contact admin if this section timetable is missing.</p>
+        </div>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div class="card-title-row">
+        <h2>Today's Class Actions</h2>
+        <span class="status-pill waiting">Today</span>
+    </div>
+
+    {% if subjects %}
+    <div class="table-wrapper">
+        <table class="teacher-action-table">
+            <tr>
+                <th>Subject</th>
+                <th>Time</th>
+                <th>Activation Window</th>
+                <th>Status</th>
+                <th>Action</th>
+                <th>Report</th>
+            </tr>
+
+            {% for cls in subjects %}
+            <tr>
+                <td><b>{{ cls.subject }}</b></td>
+                <td>{{ cls.start_time }} - {{ cls.end_time }}</td>
+                <td>{{ cls.start_time }} - {{ cls.activation_deadline }}</td>
+
+                <td>
+                    {% if cls.status_type == "CAN_START" %}
+                        <span class="status-pill active">CAN START</span>
+                    {% elif cls.status_type == "ACTIVE" %}
+                        <span class="status-pill active">ACTIVE</span>
+                    {% elif cls.status_type == "CLASS_OVER" %}
+                        <span class="status-pill over">CLASS OVER</span>
+                    {% elif cls.status_type == "NOT_HELD" %}
+                        <span class="status-pill missed">NOT HELD</span>
+                    {% elif cls.status_type == "UPCOMING" %}
+                        <span class="status-pill waiting">UPCOMING</span>
+                    {% else %}
+                        <span class="status-pill missed">TIME OVER</span>
+                    {% endif %}
+                </td>
+
+                <td>
+                    {% if cls.status_type == "CAN_START" %}
+                    <form method="post" action="/start-class/{{ cls.id }}" onsubmit="return startClassWithLocation(this);">
+                        <input type="hidden" name="teacher_lat">
+                        <input type="hidden" name="teacher_lng">
+                        <button class="btn primary-btn" type="submit">Start Class</button>
+                    </form>
+
+                    {% elif cls.status_type == "ACTIVE" %}
+                        <span class="present">Running</span>
+
+                    {% elif cls.status_type == "CLASS_OVER" %}
+                        <span class="muted-text">Completed</span>
+
+                    {% elif cls.status_type == "UPCOMING" %}
+                        <span class="muted-text">{{ cls.status_text }}</span>
+
+                    {% else %}
+                        <span class="muted-text">{{ cls.status_text }}</span>
+                    {% endif %}
+                </td>
+
+                <td>
+                    {% if cls.session_id and cls.status_type != "NOT_HELD" %}
+                        <a class="btn secondary-btn" href="/report/{{ cls.session_id }}">Report</a>
+                    {% else %}
+                        <span class="muted-text">No Report</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+    {% else %}
+        <div class="empty-state">
+            <h3>No class action found.</h3>
+            <p>No timetable entry is available for this section today.</p>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+function startClassWithLocation(form) {
+    const latInput = form.querySelector('input[name="teacher_lat"]');
+    const lngInput = form.querySelector('input[name="teacher_lng"]');
+    const button = form.querySelector("button");
+
+    button.disabled = true;
+    button.innerText = "Starting Class...";
+
+    // Fallback classroom location
+    const defaultLat = "26.9124";
+    const defaultLng = "75.7873";
+
+    if (!navigator.geolocation) {
+        latInput.value = defaultLat;
+        lngInput.value = defaultLng;
+        form.submit();
+        return false;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+        function(position) {
+            latInput.value = position.coords.latitude;
+            lngInput.value = position.coords.longitude;
+            form.submit();
+        },
+        function(error) {
+            // Mobile HTTP par location block ho to default classroom location bhej do
+            latInput.value = defaultLat;
+            lngInput.value = defaultLng;
+            form.submit();
+        },
+        {
+            enableHighAccuracy: true,
+            timeout: 8000,
+            maximumAge: 0
+        }
+    );
+
+    return false;
+}
+</script>
+{% endblock %}

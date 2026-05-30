@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dashboard-header">
+    <div>
+        <p class="tagline">Admin Panel</p>
+        <h1>Admin Dashboard</h1>
+        <p class="muted-text">Manage courses, sections, teachers, students and timetable.</p>
+    </div>
+
+    <div class="date-card">
+        <span>Admin</span>
+        <h2>{{ session.admin_name }}</h2>
+    </div>
+</div>
+
+<div class="summary-grid">
+    <div class="summary-box total-box">
+        <span>Total Students</span>
+        <h2>{{ total_students }}</h2>
+    </div>
+
+    <div class="summary-box present-box">
+        <span>Total Teachers</span>
+        <h2>{{ total_teachers }}</h2>
+    </div>
+
+    <div class="summary-box percent-box">
+        <span>Timetable Entries</span>
+        <h2>{{ total_timetable }}</h2>
+    </div>
+
+    <div class="summary-box absent-box">
+        <span>Class Sessions</span>
+        <h2>{{ total_sessions }}</h2>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-title-row">
+        <h2>Quick Actions</h2>
+        <span class="status-pill active">Manage</span>
+    </div>
+
+    <div class="admin-action-grid">
+        <a class="admin-action-card" href="/admin/add-student">
+            <h3>Add Student</h3>
+            <p>Add student with course-section like CSE-A, MTECH-A, LAW-A.</p>
+        </a>
+
+        <a class="admin-action-card" href="/admin/add-teacher">
+            <h3>Add Teacher</h3>
+            <p>Create teacher login credentials.</p>
+        </a>
+
+        <a class="admin-action-card" href="/admin/add-timetable">
+            <h3>Add Timetable</h3>
+            <p>Assign class by course-section, subject, teacher and time.</p>
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-title-row">
+        <h2>Courses</h2>
+        <span class="status-pill active">{{ course_groups|length }} Courses</span>
+    </div>
+
+    {% if course_groups %}
+    <div class="section-card-grid">
+        {% for course, data in course_groups.items() %}
+        <a class="section-click-card" href="/admin-course/{{ course }}">
+            <div>
+                <p class="tagline">Course</p>
+                <h2>{{ course }}</h2>
+                <p>{{ data.sections|length }} Sections | {{ data.student_count }} Students | {{ data.timetable_count }} Classes</p>
+            </div>
+
+            <span>Open →</span>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+        <p class="muted-text">No course found. Add students or timetable first.</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div class="card-title-row">
+        <h2>Teachers</h2>
+        <span class="status-pill active">{{ teachers|length }} Teachers</span>
+    </div>
+
+    {% if teachers %}
+    <div class="table-wrapper">
+        <table>
+            <tr>
+                <th>Name</th>
+                <th>Teacher ID</th>
+                <th>Action</th>
+            </tr>
+
+            {% for teacher in teachers %}
+            <tr>
+                <td><b>{{ teacher.name }}</b></td>
+                <td>{{ teacher.teacher_id }}</td>
+                <td>
+                    <form method="post" action="/admin/delete-teacher/{{ teacher.id }}" onsubmit="return confirm('Delete this teacher? Assigned timetable entries will also be deleted.');">
+                        <button class="btn danger-btn" type="submit">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+    {% else %}
+        <p class="muted-text">No teachers found.</p>
+    {% endif %}
+</div>
+{% endblock %}

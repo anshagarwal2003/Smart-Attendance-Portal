@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dashboard-header">
+    <div>
+        <p class="tagline">Course Panel</p>
+        <h1>{{ course }}</h1>
+        <p class="muted-text">View sections, students and timetable for this course.</p>
+    </div>
+
+    <div>
+        <a class="btn secondary-btn" href="/admin-dashboard">Back</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-title-row">
+        <h2>{{ course }} Overview</h2>
+        <span class="status-pill active">{{ student_rows|length }} Students</span>
+    </div>
+
+    <div class="admin-action-grid">
+        <a class="admin-action-card" href="/admin-course/{{ course }}/students">
+            <h3>Students</h3>
+            <p>Open all students grouped section-wise.</p>
+        </a>
+
+        <a class="admin-action-card" href="/admin/add-student">
+            <h3>Add Student</h3>
+            <p>Add new student in {{ course }} section.</p>
+        </a>
+
+        <a class="admin-action-card" href="/admin/add-timetable">
+            <h3>Add Timetable</h3>
+            <p>Add new class timetable for {{ course }}.</p>
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-title-row">
+        <h2>Sections</h2>
+        <span class="status-pill active">{{ student_groups|length }} Sections</span>
+    </div>
+
+    {% if student_groups %}
+    <div class="section-card-grid">
+        {% for section, rows in student_groups.items() %}
+        <a class="section-click-card" href="/admin-course/{{ course }}/students#{{ section }}">
+            <div>
+                <p class="tagline">Section</p>
+                <h2>{{ section }}</h2>
+                <p>{{ rows|length }} Students</p>
+            </div>
+
+            <span>Open →</span>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+        <p class="muted-text">No student section found for this course.</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div class="card-title-row">
+        <h2>Timetable</h2>
+        <span class="status-pill active">{{ timetable_rows|length }} Classes</span>
+    </div>
+
+    {% if timetable_groups %}
+        {% for section, rows in timetable_groups.items() %}
+        <div class="admin-section-block">
+            <div class="admin-section-header">
+                <div>
+                    <p class="tagline">Section</p>
+                    <h2>{{ section }}</h2>
+                </div>
+
+                <span class="status-pill active">{{ rows|length }} Classes</span>
+            </div>
+
+            <div class="table-wrapper">
+                <table>
+                    <tr>
+                        <th>Day</th>
+                        <th>Subject</th>
+                        <th>Time</th>
+                        <th>Teacher</th>
+                        <th>Action</th>
+                    </tr>
+
+                    {% for row in rows %}
+                    <tr>
+                        <td>{{ row.day }}</td>
+                        <td><b>{{ row.subject }}</b></td>
+                        <td>{{ row.start_time }} - {{ row.end_time }}</td>
+                        <td>{{ row.teacher_name }} ({{ row.teacher_code }})</td>
+                        <td>
+                            <form method="post" action="/admin/delete-timetable/{{ row.id }}" onsubmit="return confirm('Delete this timetable entry?');">
+                                <button class="btn danger-btn" type="submit">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </table>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <p class="muted-text">No timetable found for this course.</p>
+    {% endif %}
+</div>
+{% endblock %}

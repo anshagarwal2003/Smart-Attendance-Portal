@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dashboard-header">
+    <div>
+        <p class="tagline">Students</p>
+        <h1>{{ course }} Students</h1>
+        <p class="muted-text">Students are grouped section-wise.</p>
+    </div>
+
+    <div>
+        <a class="btn secondary-btn" href="/admin-course/{{ course }}">Back</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-title-row">
+        <h2>Student List</h2>
+        <span class="status-pill active">{{ student_rows|length }} Students</span>
+    </div>
+
+    {% if student_groups %}
+        {% for section, rows in student_groups.items() %}
+        <div class="admin-section-block" id="{{ section }}">
+            <div class="admin-section-header">
+                <div>
+                    <p class="tagline">Section</p>
+                    <h2>{{ section }}</h2>
+                </div>
+
+                <span class="status-pill active">{{ rows|length }} Students</span>
+            </div>
+
+            <div class="table-wrapper">
+                <table>
+                    <tr>
+                        <th>Name</th>
+                        <th>Roll No</th>
+                        <th>Section</th>
+                        <th>Action</th>
+                    </tr>
+
+                    {% for student in rows %}
+                    <tr>
+                        <td><b>{{ student.name }}</b></td>
+                        <td>{{ student.roll_no }}</td>
+                        <td>{{ student.section }}</td>
+                        <td>
+                            <form method="post" action="/admin/delete-student/{{ student.id }}" onsubmit="return confirm('Delete this student?');">
+                                <button class="btn danger-btn" type="submit">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </table>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <p class="muted-text">No students found for this course.</p>
+    {% endif %}
+</div>
+{% endblock %}

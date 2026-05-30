@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dashboard-header">
+    <div>
+        <p class="tagline">Student Panel</p>
+        <h1>Student Dashboard</h1>
+        <p class="muted-text">
+            Welcome, <b>{{ session.student_name }}</b> | Roll No: <b>{{ session.roll_no }}</b> | Section: <b>{{ session.section }}</b>
+        </p>
+    </div>
+
+    <div class="date-card">
+        <span>Attendance</span>
+        <h2>{{ attendance_percentage }}%</h2>
+    </div>
+</div>
+
+{% if active_session %}
+<div class="card active-card">
+    <div class="card-title-row">
+        <h2>Active Class Available</h2>
+        <span class="status-pill active">LIVE</span>
+    </div>
+
+    <div class="info-grid">
+        <div>
+            <span>Subject</span>
+            <b>{{ active_session.subject }}</b>
+        </div>
+
+        <div>
+            <span>Section</span>
+            <b>{{ active_session.section }}</b>
+        </div>
+
+        <div>
+            <span>Class Time</span>
+            <b>{{ active_session.class_time }}</b>
+        </div>
+
+        <div>
+            <span>Attendance Till</span>
+            <b>{{ active_session.attendance_end }}</b>
+        </div>
+    </div>
+
+    <div class="action-row">
+        <a class="btn primary-btn" href="/scan/{{ active_session.id }}">Mark Attendance</a>
+    </div>
+</div>
+{% else %}
+<div class="card">
+    <div class="card-title-row">
+        <h2>No Active Class</h2>
+        <span class="status-pill waiting">WAITING</span>
+    </div>
+
+    <p class="muted-text">
+        No live class is available right now. When teacher starts a class, it will appear here automatically.
+    </p>
+</div>
+{% endif %}
+
+<div class="summary-grid">
+    <div class="summary-box total-box">
+        <span>Total Classes</span>
+        <h2>{{ total_classes }}</h2>
+    </div>
+
+    <div class="summary-box present-box">
+        <span>Present</span>
+        <h2>{{ present_count }}</h2>
+    </div>
+
+    <div class="summary-box absent-box">
+        <span>Absent</span>
+        <h2>{{ absent_count }}</h2>
+    </div>
+
+    <div class="summary-box percent-box">
+        <span>Overall Attendance</span>
+        <h2>{{ attendance_percentage }}%</h2>
+    </div>
+</div>
+
+{% set required_overall = (3 * total_classes) - (4 * present_count) %}
+
+<div class="card student-warning-card">
+    <div class="card-title-row">
+        <h2>Attendance Status</h2>
+
+        {% if attendance_percentage >= 75 %}
+            <span class="status-pill active">SAFE</span>
+        {% elif total_classes == 0 %}
+            <span class="status-pill waiting">NO RECORD</span>
+        {% else %}
+            <span class="status-pill missed">LOW</span>
+        {% endif %}
+    </div>
+
+    {% if total_classes == 0 %}
+        <p class="muted-text">
+            Attendance records will appear after your first class attendance is generated.
+        </p>
+    {% elif attendance_percentage >= 75 %}
+        <p class="student-safe-text">
+            Good! Your overall attendance is above 75%.
+        </p>
+    {% else %}
+        <p class="student-danger-text">
+            Your overall attendance is below 75%.
+            You need to attend at least
+            <b>
+                {% if required_overall > 0 %}
+                    {{ required_overall }}
+                {% else %}
+                    0
+                {% endif %}
+            </b>
+            upcoming classes continuously to reach 75%.
+        </p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div class="card-title-row">
+        <h2>Subject-wise Attendance</h2>
+        <span class="status-pill active">{{ subject_groups|length }} Subjects</span>
+    </div>
+
+    {% if subject_groups %}
+    <div class="student-subject-grid">
+        {% for subject, data in subject_groups.items() %}
+            {% set required_subject = (3 * data.total) - (4 * data.present) %}
+
+            <div class="student-subject-card">
+                <div class="student-subject-top">
+                    <div>
+                        <p class="tagline">Subject</p>
+                        <h2>{{ subject }}</h2>
+                    </div>
+
+                    {% if data.percentage >= 75 %}
+                        <span class="status-pill active">SAFE</span>
+                    {% else %}
+                        <span class="status-pill missed">LOW</span>
+                    {% endif %}
+                </div>
+
+                <div class="student-progress-wrap">
+                    <div class="student-progress-bar">
+                        <div class="student-progress-fill" style="width: {{ data.percentage }}%;"></div>
+                    </div>
+                    <span>{{ data.percentage }}%</span>
+                </div>
+
+                <div class="student-mini-stats">
+                    <div>
+                        <span>Total</span>
+                        <b>{{ data.total }}</b>
+                    </div>
+
+                    <div>
+                        <span>Present</span>
+                        <b>{{ data.present }}</b>
+                    </div>
+
+                    <div>
+                        <span>Absent</span>
+                        <b>{{ data.absent }}</b>
+                    </div>
+                </div>
+
+                {% if data.total > 0 and data.percentage < 75 %}
+                    <p class="student-danger-text small">
+                        Need
+                        <b>
+                            {% if required_subject > 0 %}
+                                {{ required_subject }}
+                            {% else %}
+                                0
+                            {% endif %}
+                        </b>
+                        more continuous classes to reach 75%.
+                    </p>
+                {% else %}
+                    <p class="student-safe-text small">Attendance is maintained.</p>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+    {% else %}
+        <p class="muted-text">No subject-wise attendance record found.</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div class="card-title-row">
+        <h2>Attendance History</h2>
+        <span class="status-pill active">{{ total_classes }} Records</span>
+    </div>
+
+    {% if subject_groups %}
+        {% for subject, data in subject_groups.items() %}
+        <div class="admin-section-block">
+            <div class="admin-section-header">
+                <div>
+                    <p class="tagline">Subject</p>
+                    <h2>{{ subject }}</h2>
+                </div>
+
+                <span class="status-pill active">{{ data.records|length }} Classes</span>
+            </div>
+
+            <div class="table-wrapper">
+                <table>
+                    <tr>
+                        <th>Date</th>
+                        <th>Class Time</th>
+                        <th>Status</th>
+                        <th>Marked Time</th>
+                    </tr>
+
+                    {% for row in data.records %}
+                    <tr>
+                        <td>{{ row.class_date }}</td>
+                        <td>{{ row.class_time }}</td>
+                        <td>
+                            {% if row.status == "PRESENT" %}
+                                <span class="report-status present-status">PRESENT</span>
+                            {% else %}
+                                <span class="report-status absent-status">ABSENT</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if row.time %}
+                                {{ row.time }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </table>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <p class="muted-text">No attendance history available.</p>
+    {% endif %}
+</div>
+{% endblock %}

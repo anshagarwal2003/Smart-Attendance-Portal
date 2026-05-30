@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+notepad static\css\style.css
+{% block content %}
+<div class="dashboard-header">
+    <div>
+        <p class="tagline">Subject History</p>
+        <h1>{{ subject }}</h1>
+        <p class="muted-text">
+            Section {{ section }} | All class sessions and reports for this subject.
+        </p>
+    </div>
+
+    <div>
+        <a class="btn secondary-btn" href="/teacher-section/{{ section }}">Back to Section</a>
+    </div>
+</div>
+
+{% set total_sessions = sessions|length %}
+{% set active_count = namespace(value=0) %}
+{% set closed_count = namespace(value=0) %}
+{% set not_held_count = namespace(value=0) %}
+
+{% for row in sessions %}
+    {% if row.status == "ACTIVE" %}
+        {% set active_count.value = active_count.value + 1 %}
+    {% elif row.status == "CLOSED" %}
+        {% set closed_count.value = closed_count.value + 1 %}
+    {% elif row.status == "NOT_HELD" %}
+        {% set not_held_count.value = not_held_count.value + 1 %}
+    {% endif %}
+{% endfor %}
+
+<div class="summary-grid">
+    <div class="summary-box total-box">
+        <span>Total Sessions</span>
+        <h2>{{ total_sessions }}</h2>
+    </div>
+
+    <div class="summary-box present-box">
+        <span>Completed</span>
+        <h2>{{ closed_count.value }}</h2>
+    </div>
+
+    <div class="summary-box percent-box">
+        <span>Active</span>
+        <h2>{{ active_count.value }}</h2>
+    </div>
+
+    <div class="summary-box absent-box">
+        <span>Not Held</span>
+        <h2>{{ not_held_count.value }}</h2>
+    </div>
+</div>
+
+<div class="card subject-history-card">
+    <div class="card-title-row">
+        <h2>Class History</h2>
+        <span class="status-pill active">{{ total_sessions }} Records</span>
+    </div>
+
+    {% if sessions %}
+    <div class="table-wrapper">
+        <table class="compact-history-table">
+            <tr>
+                <th>S.No</th>
+                <th>Date</th>
+                <th>Class Time</th>
+                <th>Activated At</th>
+                <th>Attendance Till</th>
+                <th>Session Code</th>
+                <th>Status</th>
+                <th>Report</th>
+                <th>Excel</th>
+            </tr>
+
+            {% for row in sessions %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td><b>{{ row.class_date }}</b></td>
+                <td>{{ row.class_time }}</td>
+                <td>{{ row.activated_at }}</td>
+                <td>{{ row.attendance_end }}</td>
+                <td><b>{{ row.session_code }}</b></td>
+
+                <td>
+                    {% if row.status == "ACTIVE" %}
+                        <span class="status-pill active">ACTIVE</span>
+                    {% elif row.status == "CLOSED" %}
+                        <span class="status-pill over">CLASS OVER</span>
+                    {% elif row.status == "NOT_HELD" %}
+                        <span class="status-pill missed">NOT HELD</span>
+                    {% else %}
+                        <span class="status-pill waiting">{{ row.status }}</span>
+                    {% endif %}
+                </td>
+
+                <td>
+                    {% if row.status != "NOT_HELD" %}
+                        <a class="btn secondary-btn small-btn" href="/report/{{ row.id }}">Report</a>
+                    {% else %}
+                        <span class="muted-text">No Report</span>
+                    {% endif %}
+                </td>
+
+                <td>
+                    {% if row.status != "NOT_HELD" %}
+                        <a class="btn primary-btn small-btn" href="/export-excel/{{ row.id }}">Excel</a>
+                    {% else %}
+                        <span class="muted-text">-</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+    {% else %}
+        <div class="empty-state">
+            <h3>No class history found.</h3>
+            <p>When this subject class is started, its history will appear here.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

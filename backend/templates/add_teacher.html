@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dashboard-header">
+    <div>
+        <p class="tagline">Admin Panel</p>
+        <h1>Add Teacher</h1>
+        <p class="muted-text">Create a new teacher account for class session management.</p>
+    </div>
+
+    <div>
+        <a class="btn secondary-btn" href="/admin-dashboard">Back</a>
+    </div>
+</div>
+
+<div class="form-card">
+    {% if error %}
+        <div class="error-box">{{ error }}</div>
+    {% endif %}
+
+    <form method="post">
+        <div class="form-group">
+            <label>Teacher Name</label>
+            <input type="text" name="name" placeholder="Example: Dr. Amit Sharma" required>
+        </div>
+
+        <div class="form-group">
+            <label>Teacher ID</label>
+            <input type="text" name="teacher_id" placeholder="Example: T102" required>
+            <p class="small-help">Teacher will use this ID for login.</p>
+        </div>
+
+        <div class="form-group">
+            <label>Password</label>
+            <input type="text" name="password" placeholder="Example: 1234" required>
+        </div>
+
+        <button class="btn primary-btn" type="submit">Add Teacher</button>
+    </form>
+</div>
+{% endblock %}

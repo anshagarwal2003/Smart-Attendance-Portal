@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="login-page">
+    <div class="login-left">
+        <p class="tagline">TEACHER ACCESS</p>
+        <h1>Teacher Login</h1>
+        <p>
+            Start scheduled classes, generate session code, monitor attendance and view subject-wise reports.
+        </p>
+
+        <a class="btn secondary-btn" href="/">Back to Home</a>
+    </div>
+
+    <div class="login-card">
+        <div class="login-icon teacher-icon">T</div>
+
+        <h2>Welcome Teacher</h2>
+        <p class="muted-text">Enter your teacher ID and password.</p>
+
+        {% if error %}
+            <div class="error-box">{{ error }}</div>
+        {% endif %}
+
+        <form method="post">
+            <div class="form-group">
+                <label>Teacher ID</label>
+                <input type="text" name="teacher_id" placeholder="Example: T101" required>
+            </div>
+
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" name="password" placeholder="Enter Password" required>
+            </div>
+
+            <button class="btn primary-btn login-btn" type="submit">Login as Teacher</button>
+        </form>
+
+        <p class="login-help">Default: T101 / 1234</p>
+    </div>
+</div>
+{% endblock %}

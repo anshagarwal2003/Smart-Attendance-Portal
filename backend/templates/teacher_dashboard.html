@@ -1,0 +1,227 @@
+notepad templates\teacher_section.htmlnotepad templates\teacher_section.html{% extends "base.html" %}
+
+{% block content %}
+<div class="dashboard-header">
+    <div>
+        <p class="tagline">Teacher Panel</p>
+        <h1>Teacher Dashboard</h1>
+        <p class="muted-text">
+            Welcome, <b>{{ session.teacher_name }}</b>. Manage live classes, upcoming sessions and reports.
+        </p>
+    </div>
+
+    <div class="date-card">
+        <span>Today</span>
+        <h2>{{ today }}</h2>
+    </div>
+</div>
+
+{% if active_session %}
+<div class="card teacher-live-card">
+    <div class="card-title-row">
+        <h2>Live Class Active</h2>
+        <span class="status-pill active">LIVE</span>
+    </div>
+
+    <div class="teacher-live-layout">
+        <div>
+            <div class="info-grid">
+                <div>
+                    <span>Subject</span>
+                    <b>{{ active_session.subject }}</b>
+                </div>
+
+                <div>
+                    <span>Section</span>
+                    <b>{{ active_session.section }}</b>
+                </div>
+
+                <div>
+                    <span>Class Time</span>
+                    <b>{{ active_session.class_time }}</b>
+                </div>
+
+                <div>
+                    <span>Activated At</span>
+                    <b>{{ active_session.activated_at }}</b>
+                </div>
+
+                <div>
+                    <span>Attendance Till</span>
+                    <b>{{ active_session.attendance_end }}</b>
+                </div>
+
+                <div>
+                    <span>Status</span>
+                    <b>{{ active_session.status }}</b>
+                </div>
+            </div>
+        </div>
+
+        <div class="session-box teacher-session-code">
+            <span>Session Code</span>
+            <h1>{{ active_session.session_code }}</h1>
+            <p>Share this code with students for attendance marking.</p>
+        </div>
+    </div>
+
+    <div class="action-row">
+        <a class="btn primary-btn" href="/report/{{ active_session.id }}">View Report</a>
+
+        <form method="post" action="/close-class/{{ active_session.id }}" onsubmit="return confirm('Close this active class?');">
+            <button class="btn danger-btn" type="submit">Close Class</button>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-title-row">
+        <h2>Can Start Classes</h2>
+        <span class="status-pill active">{{ can_start_classes|length }} Ready</span>
+    </div>
+
+    {% if can_start_classes %}
+    <div class="class-card-grid">
+        {% for cls in can_start_classes %}
+        <div class="class-mini-card teacher-ready-card">
+            <div class="class-mini-header">
+                <h2>{{ cls.subject }}</h2>
+                <span class="status-pill active">CAN START</span>
+            </div>
+
+            <div class="teacher-class-details">
+                <p><b>Section:</b> {{ cls.section }}</p>
+                <p><b>Class Time:</b> {{ cls.start_time }} - {{ cls.end_time }}</p>
+                <p><b>Start Till:</b> {{ cls.activation_deadline }}</p>
+                <p class="muted-text">{{ cls.status_text }}</p>
+            </div>
+
+            <div class="action-row">
+                <form method="post" action="/start-class/{{ cls.id }}" onsubmit="return startClassWithLocation(this);">
+                    <input type="hidden" name="teacher_lat">
+                    <input type="hidden" name="teacher_lng">
+                    <button class="btn primary-btn" type="submit">Start Class</button>
+                </form>
+
+                <a class="btn secondary-btn" href="/teacher-section/{{ cls.section }}">Open Section</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+        <div class="empty-state">
+            <h3>No class is ready to start right now.</h3>
+            <p>Classes will appear here during their allowed start window.</p>
+        </div>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div class="card-title-row">
+        <h2>Upcoming Classes</h2>
+        <span class="status-pill waiting">{{ upcoming_classes|length }} Upcoming</span>
+    </div>
+
+    {% if upcoming_classes %}
+    <div class="class-card-grid">
+        {% for cls in upcoming_classes %}
+        <div class="class-mini-card teacher-upcoming-card">
+            <div class="class-mini-header">
+                <h2>{{ cls.subject }}</h2>
+                <span class="status-pill waiting">UPCOMING</span>
+            </div>
+
+            <div class="teacher-class-details">
+                <p><b>Section:</b> {{ cls.section }}</p>
+                <p><b>Class Time:</b> {{ cls.start_time }} - {{ cls.end_time }}</p>
+                <p><b>Start Window:</b> {{ cls.start_time }} - {{ cls.activation_deadline }}</p>
+                <p class="muted-text">{{ cls.status_text }}</p>
+            </div>
+
+            <div class="action-row">
+                <button class="btn secondary-btn" disabled>Waiting</button>
+                <a class="btn secondary-btn" href="/teacher-section/{{ cls.section }}">Open Section</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+        <div class="empty-state">
+            <h3>No upcoming class for today.</h3>
+            <p>Assigned timetable classes will appear here automatically.</p>
+        </div>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div class="card-title-row">
+        <h2>Your Sections</h2>
+        <span class="status-pill active">{{ sections|length }} Sections</span>
+    </div>
+
+    {% if sections %}
+    <div class="section-card-grid">
+        {% for sec in sections %}
+        <a class="section-click-card teacher-section-card" href="/teacher-section/{{ sec.section }}">
+            <div>
+                <p class="tagline">Section</p>
+                <h2>{{ sec.section }}</h2>
+                <p>{{ sec.total_classes }} classes scheduled today</p>
+            </div>
+
+            <span>Open →</span>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+        <div class="empty-state">
+            <h3>No section assigned for today.</h3>
+            <p>Please contact admin if your timetable is missing.</p>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+function startClassWithLocation(form) {
+    const latInput = form.querySelector('input[name="teacher_lat"]');
+    const lngInput = form.querySelector('input[name="teacher_lng"]');
+    const button = form.querySelector("button");
+
+    button.disabled = true;
+    button.innerText = "Starting Class...";
+
+    // Fallback classroom location
+    const defaultLat = "26.9124";
+    const defaultLng = "75.7873";
+
+    if (!navigator.geolocation) {
+        latInput.value = defaultLat;
+        lngInput.value = defaultLng;
+        form.submit();
+        return false;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+        function(position) {
+            latInput.value = position.coords.latitude;
+            lngInput.value = position.coords.longitude;
+            form.submit();
+        },
+        function(error) {
+            // Mobile HTTP par location block ho to default classroom location bhej do
+            latInput.value = defaultLat;
+            lngInput.value = defaultLng;
+            form.submit();
+        },
+        {
+            enableHighAccuracy: true,
+            timeout: 8000,
+            maximumAge: 0
+        }
+    );
+
+    return false;
+}
+</script>
+{% endblock %}
