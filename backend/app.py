@@ -8,7 +8,11 @@ import base64
 import os
 import math
 import io
+import threading
+import time
 from datetime import datetime, timedelta
+
+from huggingface_hub import snapshot_download, HfApi
 
 import numpy as np
 from PIL import Image, ImageOps
@@ -17,12 +21,54 @@ import face_recognition
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 
+# Force IST Timezone on Linux servers (Hugging Face)
+if hasattr(time, 'tzset'):
+    os.environ['TZ'] = 'Asia/Kolkata'
+    time.tzset()
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DATA_DIR = os.environ.get("DATA_DIR", BASE_DIR)
 
+HF_TOKEN = os.environ.get("HF_TOKEN")
+DATASET_REPO_ID = "anshagarwal2003/smart-attendance-data"
+
+if HF_TOKEN:
+    try:
+        print("Downloading persistent data from HF Dataset...")
+        snapshot_download(
+            repo_id=DATASET_REPO_ID,
+            repo_type="dataset",
+            local_dir=DATA_DIR,
+            token=HF_TOKEN
+        )
+    except Exception as e:
+        print(f"Dataset empty or failed to download: {e}")
+
+    def sync_to_hf():
+        api = HfApi()
+        while True:
+            time.sleep(300) # Sync every 5 minutes
+            try:
+                api.upload_folder(
+                    folder_path=DATA_DIR,
+                    repo_id=DATASET_REPO_ID,
+                    repo_type="dataset",
+                    token=HF_TOKEN
+                )
+                print("Successfully synced data to HF Dataset.")
+            except Exception as e:
+                print(f"Failed to sync data: {e}")
+
+    # Start background sync thread
+    sync_thread = threading.Thread(target=sync_to_hf, daemon=True)
+    sync_thread.start()
+
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "smart-attendance-secret")
+app.config.update(
+    SESSION_COOKIE_SAMESITE='None',
+    SESSION_COOKIE_SECURE=True
+)
 
 DB_NAME = os.environ.get("DATABASE_PATH", os.path.join(DATA_DIR, "smart_attendance.db"))
 
@@ -270,6 +316,22 @@ def init_db():
     )
     """)
 
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS courses (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        course_name TEXT UNIQUE NOT NULL
+    )
+    """)
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS sections (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        course_name TEXT NOT NULL,
+        section_name TEXT NOT NULL,
+        UNIQUE(course_name, section_name)
+    )
+    """)
+
     con.commit()
 
     admin_count = cur.execute("SELECT COUNT(*) AS total FROM admins").fetchone()["total"]
@@ -329,6 +391,14 @@ def init_db():
 @app.route("/")
 def home():
     return render_template("index.html")
+
+@app.route("/server-time")
+def server_time():
+    return jsonify({
+        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "day": datetime.now().strftime("%A"),
+        "tz": os.environ.get("TZ", "Not Set")
+    })
 
 
 @app.route("/teacher-login", methods=["GET", "POST"])
@@ -431,8 +501,13 @@ def teacher_dashboard():
             current_date + " " + cls["start_time"],
             "%Y-%m-%d %H:%M"
         )
+        
+        class_end = datetime.strptime(
+            current_date + " " + cls["end_time"],
+            "%Y-%m-%d %H:%M"
+        )
 
-        activation_deadline = class_start + timedelta(minutes=TEACHER_ACTIVATION_LIMIT_MINUTES)
+        can_start_window = class_start - timedelta(minutes=15)
         class_time = f"{cls['start_time']} - {cls['end_time']}"
 
         existing_session = con.execute("""
@@ -456,16 +531,16 @@ def teacher_dashboard():
             continue
 
         cls_dict = dict(cls)
-        cls_dict["activation_deadline"] = activation_deadline.strftime("%H:%M")
+        cls_dict["activation_deadline"] = class_end.strftime("%H:%M")
 
-        if now < class_start:
+        if now < can_start_window:
             cls_dict["status_type"] = "UPCOMING"
             cls_dict["status_text"] = f"Upcoming at {cls['start_time']}"
             upcoming_classes.append(cls_dict)
 
-        elif class_start <= now <= activation_deadline:
+        elif can_start_window <= now <= class_end:
             cls_dict["status_type"] = "CAN_START"
-            cls_dict["status_text"] = f"Can start till {activation_deadline.strftime('%H:%M')}"
+            cls_dict["status_text"] = f"Can start till {class_end.strftime('%H:%M')}"
             can_start_classes.append(cls_dict)
 
     con.close()
@@ -890,6 +965,15 @@ def student_dashboard():
         if total > 0:
             subject_groups[subject]["percentage"] = round((present / total) * 100, 2)
 
+    current_day = datetime.now().strftime("%A")
+    today_timetable = con.execute("""
+        SELECT timetable.*, teachers.name as teacher_name
+        FROM timetable 
+        JOIN teachers ON timetable.teacher_id = teachers.id
+        WHERE day = ? AND section = ?
+        ORDER BY start_time ASC
+    """, (current_day, normalize_section(session["section"]))).fetchall()
+
     con.close()
 
     return render_template(
@@ -899,7 +983,8 @@ def student_dashboard():
         present_count=present_count,
         absent_count=absent_count,
         attendance_percentage=attendance_percentage,
-        subject_groups=subject_groups
+        subject_groups=subject_groups,
+        today_timetable=today_timetable
     )
 
 
@@ -1291,6 +1376,31 @@ def admin_dashboard():
 
     course_groups = {}
 
+    explicit_courses = con.execute("SELECT course_name FROM courses").fetchall()
+    for row in explicit_courses:
+        course = row["course_name"].upper()
+        if course not in course_groups:
+            course_groups[course] = {
+                "course": course,
+                "sections": set(),
+                "student_count": 0,
+                "timetable_count": 0
+            }
+
+    explicit_sections = con.execute("SELECT course_name, section_name FROM sections").fetchall()
+    for row in explicit_sections:
+        course = row["course_name"].upper()
+        section_full = f"{course}-{row['section_name'].upper()}"
+        
+        if course not in course_groups:
+            course_groups[course] = {
+                "course": course,
+                "sections": set(),
+                "student_count": 0,
+                "timetable_count": 0
+            }
+        course_groups[course]["sections"].add(section_full)
+
     for row in all_sections:
         section = normalize_section(row["section"])
         course = get_course_from_section(section)
@@ -1613,6 +1723,59 @@ def delete_timetable(timetable_id):
     con.close()
 
     return redirect(url_for("admin_dashboard"))
+
+@app.route("/admin/add-course", methods=["GET", "POST"])
+def add_course():
+    if "admin_id" not in session:
+        return redirect(url_for("admin_login"))
+
+    if request.method == "POST":
+        course_name = request.form.get("course_name", "").strip().upper()
+        if not course_name:
+            return render_template("add_course.html", error="Course Name is required")
+            
+        con = get_db()
+        try:
+            con.execute("INSERT INTO courses (course_name) VALUES (?)", (course_name,))
+            con.commit()
+        except sqlite3.IntegrityError:
+            con.close()
+            return render_template("add_course.html", error="Course already exists")
+            
+        con.close()
+        return redirect(url_for("admin_dashboard"))
+
+    return render_template("add_course.html")
+
+
+@app.route("/admin/add-section", methods=["GET", "POST"])
+def add_section():
+    if "admin_id" not in session:
+        return redirect(url_for("admin_login"))
+
+    con = get_db()
+    courses = con.execute("SELECT course_name FROM courses ORDER BY course_name").fetchall()
+    
+    if request.method == "POST":
+        course_name = request.form.get("course_name", "").strip().upper()
+        section_name = request.form.get("section_name", "").strip().upper()
+        
+        if not course_name or not section_name:
+            con.close()
+            return render_template("add_section.html", courses=courses, error="Course and Section Name are required")
+            
+        try:
+            con.execute("INSERT INTO sections (course_name, section_name) VALUES (?, ?)", (course_name, section_name))
+            con.commit()
+        except sqlite3.IntegrityError:
+            con.close()
+            return render_template("add_section.html", courses=courses, error="Section already exists for this course")
+            
+        con.close()
+        return redirect(url_for("admin_dashboard"))
+
+    con.close()
+    return render_template("add_section.html", courses=courses)
 
 
 @app.route("/admin/add-student", methods=["GET", "POST"])
