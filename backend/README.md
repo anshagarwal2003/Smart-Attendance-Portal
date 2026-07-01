@@ -1,4 +1,13 @@
-\# Smart Attendance System
+---
+title: Smart Attendance
+emoji: 🏢
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+pinned: false
+---
+
+# Smart Attendance System
 
 
 

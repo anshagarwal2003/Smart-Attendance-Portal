@@ -62,6 +62,40 @@
 </div>
 {% endif %}
 
+<div class="card">
+    <div class="card-title-row">
+        <h2>Today's Timetable</h2>
+        <span class="status-pill waiting">SCHEDULE</span>
+    </div>
+    
+    {% if today_timetable %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Subject</th>
+                    <th>Time</th>
+                    <th>Teacher</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in today_timetable %}
+                <tr>
+                    <td><b>{{ row.subject }}</b></td>
+                    <td>{{ row.start_time }} - {{ row.end_time }}</td>
+                    <td>{{ row.teacher_name }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="muted-text" style="margin-top: 15px;">
+        You have no classes scheduled for today. Enjoy your day!
+    </p>
+    {% endif %}
+</div>
+
 <div class="summary-grid">
     <div class="summary-box total-box">
         <span>Total Classes</span>
