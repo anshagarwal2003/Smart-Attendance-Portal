@@ -1,41 +1,63 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="login-page">
-    <div class="login-left">
-        <p class="tagline">TEACHER ACCESS</p>
-        <h1>Teacher Login</h1>
-        <p>
-            Start scheduled classes, generate session code, monitor attendance and view subject-wise reports.
-        </p>
-
-        <a class="btn secondary-btn" href="/">Back to Home</a>
-    </div>
-
-    <div class="login-card">
-        <div class="login-icon teacher-icon">T</div>
-
-        <h2>Welcome Teacher</h2>
-        <p class="muted-text">Enter your teacher ID and password.</p>
-
-        {% if error %}
-            <div class="error-box">{{ error }}</div>
-        {% endif %}
-
-        <form method="post">
-            <div class="form-group">
-                <label>Teacher ID</label>
-                <input type="text" name="teacher_id" placeholder="Example: T101" required>
+<div class="container">
+    <div class="login-page">
+        <div class="login-left">
+            <div class="hero-pill">
+                <span>👨‍🏫 Faculty Biometric Access</span>
             </div>
+            <h1 class="hero-new-title" style="font-size: 46px;">Teacher <span>Portal</span></h1>
+            <p>
+                Start scheduled classes, generate one-time session codes, monitor student GPS geofencing, and download Excel attendance sheets.
+            </p>
 
-            <div class="form-group">
-                <label>Password</label>
-                <input type="password" name="password" placeholder="Enter Password" required>
+            <ul class="login-feature-list">
+                <li>
+                    <span class="login-feature-icon">✨</span>
+                    <span>AI Facial Verification for all enrolled students</span>
+                </li>
+                <li>
+                    <span class="login-feature-icon">📍</span>
+                    <span>GPS Classroom Geofence boundary verification</span>
+                </li>
+                <li>
+                    <span class="login-feature-icon">📊</span>
+                    <span>One-click instant Excel & CSV report download</span>
+                </li>
+            </ul>
+
+            <a class="btn secondary-btn" href="/">← Back to Home</a>
+        </div>
+
+        <div class="login-card">
+            <div class="login-icon teacher-icon">👨‍🏫</div>
+
+            <h2>Welcome Teacher</h2>
+            <div class="security-tag">🔒 End-to-End Encrypted Session</div>
+
+            {% if error %}
+                <div class="error-box">{{ error }}</div>
+            {% endif %}
+
+            <form method="post">
+                <div class="form-group">
+                    <label>Teacher ID</label>
+                    <input type="text" name="teacher_id" placeholder="Example: T101" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" name="password" placeholder="Enter your password" required>
+                </div>
+
+                <button class="btn primary-btn login-btn" type="submit">Login as Teacher</button>
+            </form>
+
+            <div class="login-help">
+                <span>Demo Hint: Try <b>T101</b> with password <b>123456</b></span>
             </div>
-
-            <button class="btn primary-btn login-btn" type="submit">Login as Teacher</button>
-        </form>
-
+        </div>
     </div>
 </div>
 {% endblock %}

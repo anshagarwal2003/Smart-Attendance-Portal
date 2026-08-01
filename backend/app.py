@@ -112,6 +112,60 @@ def get_course_from_section(section):
     return section
 
 
+def get_all_sections_for_course(con, course):
+    course = course.strip().upper()
+    sections_set = set()
+
+    explicit = con.execute("SELECT section_name FROM sections WHERE UPPER(course_name) = ?", (course,)).fetchall()
+    for row in explicit:
+        sec = str(row["section_name"]).strip().upper()
+        if not sec.startswith(course + "-"):
+            sec = f"{course}-{sec}"
+        sections_set.add(sec)
+
+    like_pattern = course + "-%"
+    students_secs = con.execute("""
+        SELECT DISTINCT section FROM students 
+        WHERE UPPER(REPLACE(TRIM(section), ' ', '-')) LIKE ? OR UPPER(TRIM(section)) = ?
+    """, (like_pattern, course)).fetchall()
+    for row in students_secs:
+        sections_set.add(normalize_section(row["section"]))
+
+    timetable_secs = con.execute("""
+        SELECT DISTINCT section FROM timetable 
+        WHERE UPPER(REPLACE(TRIM(section), ' ', '-')) LIKE ? OR UPPER(TRIM(section)) = ?
+    """, (like_pattern, course)).fetchall()
+    for row in timetable_secs:
+        sections_set.add(normalize_section(row["section"]))
+
+    if not sections_set:
+        sections_set.add(f"{course}-A")
+
+    return sorted(list(sections_set))
+
+
+def get_all_sections(con):
+    sections_set = set()
+    rows = con.execute("""
+        SELECT course_name, section_name FROM sections
+    """).fetchall()
+    for row in rows:
+        c = row["course_name"].strip().upper()
+        s = row["section_name"].strip().upper()
+        if not s.startswith(c + "-"):
+            sections_set.add(f"{c}-{s}")
+        else:
+            sections_set.add(s)
+
+    for table in ["students", "timetable"]:
+        rows = con.execute(f"SELECT DISTINCT section FROM {table}").fetchall()
+        for row in rows:
+            if row["section"]:
+                sections_set.add(normalize_section(row["section"]))
+
+    return sorted(list(sections_set))
+
+
 def generate_code(length=6):
     letters = string.ascii_uppercase + string.digits
     return "".join(random.choice(letters) for _ in range(length))
@@ -283,7 +337,19 @@ def init_db():
         start_time TEXT NOT NULL,
         end_time TEXT NOT NULL,
         section TEXT NOT NULL,
-        teacher_id INTEGER NOT NULL
+        teacher_id INTEGER NOT NULL,
+        room_no TEXT,
+        room_range INTEGER
+    )
+    """)
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS rooms (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        room_no TEXT NOT NULL UNIQUE,
+        room_range INTEGER NOT NULL,
+        room_lat REAL,
+        room_lng REAL
     )
     """)
 
@@ -298,7 +364,8 @@ def init_db():
         activated_at TEXT NOT NULL,
         attendance_end TEXT NOT NULL,
         session_code TEXT NOT NULL,
-        status TEXT NOT NULL
+        status TEXT NOT NULL,
+        timetable_id INTEGER
     )
     """)
 
@@ -716,8 +783,10 @@ def start_class(timetable_id):
     con = get_db()
 
     class_data = con.execute("""
-        SELECT * FROM timetable
-        WHERE id = ? AND teacher_id = ?
+        SELECT timetable.*, rooms.room_lat, rooms.room_lng, rooms.room_range
+        FROM timetable
+        LEFT JOIN rooms ON timetable.room_no = rooms.room_no
+        WHERE timetable.id = ? AND teacher_id = ?
     """, (timetable_id, session["teacher_db_id"])).fetchone()
 
     if not class_data:
@@ -779,8 +848,8 @@ def start_class(timetable_id):
         con.execute("""
             INSERT INTO class_sessions
             (teacher_id, subject, section, class_date, class_time, activated_at,
-             attendance_end, session_code, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+             attendance_end, session_code, status, timetable_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             session["teacher_db_id"],
             class_data["subject"],
@@ -790,7 +859,8 @@ def start_class(timetable_id):
             now.strftime("%H:%M:%S"),
             "-",
             "-",
-            "NOT_HELD"
+            "NOT_HELD",
+            timetable_id
         ))
 
         con.commit()
@@ -802,16 +872,22 @@ def start_class(timetable_id):
         con.close()
         return "Class time already over."
 
+    if class_data["room_lat"] is None or class_data["room_lng"] is None:
+        con.close()
+        return "Room location not set. Please ask Admin to set the GPS location for this room."
+
     teacher_distance = calculate_distance(
         float(teacher_lat),
         float(teacher_lng),
-        CLASSROOM_LAT,
-        CLASSROOM_LNG
+        float(class_data["room_lat"]),
+        float(class_data["room_lng"])
     )
 
-    if teacher_distance > TEACHER_ALLOWED_RADIUS_METERS:
+    allowed_range = class_data["room_range"] if class_data["room_range"] else TEACHER_ALLOWED_RADIUS_METERS
+
+    if teacher_distance > allowed_range:
         con.close()
-        return f"Blocked: Teacher classroom range ke bahar hai. Distance: {int(teacher_distance)} meters"
+        return f"Blocked: Teacher is outside the room range. Distance: {int(teacher_distance)} meters (Allowed: {allowed_range}m)"
 
     activated_at = now.strftime("%H:%M:%S")
     attendance_end = (now + timedelta(minutes=ATTENDANCE_WINDOW_MINUTES)).strftime("%H:%M:%S")
@@ -826,8 +902,8 @@ def start_class(timetable_id):
     cur = con.execute("""
         INSERT INTO class_sessions
         (teacher_id, subject, section, class_date, class_time, activated_at,
-         attendance_end, session_code, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+         attendance_end, session_code, status, timetable_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         session["teacher_db_id"],
         class_data["subject"],
@@ -837,7 +913,8 @@ def start_class(timetable_id):
         activated_at,
         attendance_end,
         session_code,
-        "ACTIVE"
+        "ACTIVE",
+        timetable_id
     ))
 
     session_id = cur.lastrowid
@@ -1041,8 +1118,11 @@ def api_mark_attendance():
     con = get_db()
 
     active_session = con.execute("""
-        SELECT * FROM class_sessions
-        WHERE id = ? AND status = 'ACTIVE'
+        SELECT class_sessions.*, rooms.room_lat, rooms.room_lng, rooms.room_range
+        FROM class_sessions
+        LEFT JOIN timetable ON class_sessions.timetable_id = timetable.id
+        LEFT JOIN rooms ON timetable.room_no = rooms.room_no
+        WHERE class_sessions.id = ? AND class_sessions.status = 'ACTIVE'
     """, (session_id,)).fetchone()
 
     if not active_session:
@@ -1099,18 +1179,24 @@ def api_mark_attendance():
             message="Face verification failed: " + face_message
         )
 
+    if active_session["room_lat"] is None or active_session["room_lng"] is None:
+        con.close()
+        return jsonify(success=False, message="Room location is not configured. Admin needs to set GPS for this room.")
+
     distance = calculate_distance(
         float(lat),
         float(lng),
-        COLLEGE_LAT,
-        COLLEGE_LNG
+        float(active_session["room_lat"]),
+        float(active_session["room_lng"])
     )
 
-    if distance > ALLOWED_RADIUS_METERS:
+    allowed_range = active_session["room_range"] if active_session["room_range"] else ALLOWED_RADIUS_METERS
+
+    if distance > allowed_range:
         con.close()
         return jsonify(
             success=False,
-            message=f"Blocked: You are outside allowed radius. Distance: {int(distance)} meters"
+            message=f"Blocked: You are outside allowed radius. Distance: {int(distance)} meters (Allowed: {allowed_range}m)"
         )
 
     proof_filename = save_proof_image(image_data, student["roll_no"], session_id)
@@ -1469,7 +1555,7 @@ def admin_course(course):
             teachers.teacher_id AS teacher_code
         FROM timetable
         JOIN teachers ON teachers.id = timetable.teacher_id
-        WHERE UPPER(REPLACE(TRIM(timetable.section), ' ', '-')) LIKE ?
+        WHERE UPPER(REPLACE(TRIM(timetable.section), ' ', '-')) LIKE ? OR UPPER(TRIM(timetable.section)) = ?
         ORDER BY 
             timetable.section,
             CASE timetable.day
@@ -1483,33 +1569,30 @@ def admin_course(course):
                 ELSE 8
             END,
             timetable.start_time
-    """, (like_pattern,)).fetchall()
+    """, (like_pattern, course)).fetchall()
 
-    timetable_groups = {}
+    all_sections = get_all_sections_for_course(con, course)
+    timetable_groups = {sec: [] for sec in all_sections}
 
     for row in timetable_rows:
         section = normalize_section(row["section"])
-
         if section not in timetable_groups:
             timetable_groups[section] = []
-
         timetable_groups[section].append(row)
 
     student_rows = con.execute("""
         SELECT *
         FROM students
-        WHERE UPPER(REPLACE(TRIM(section), ' ', '-')) LIKE ?
+        WHERE UPPER(REPLACE(TRIM(section), ' ', '-')) LIKE ? OR UPPER(TRIM(section)) = ?
         ORDER BY section, name
-    """, (like_pattern,)).fetchall()
+    """, (like_pattern, course)).fetchall()
 
-    student_groups = {}
+    student_groups = {sec: [] for sec in all_sections}
 
     for row in student_rows:
         section = normalize_section(row["section"])
-
         if section not in student_groups:
             student_groups[section] = []
-
         student_groups[section].append(row)
 
     con.close()
@@ -1537,18 +1620,17 @@ def admin_course_students(course):
     student_rows = con.execute("""
         SELECT *
         FROM students
-        WHERE UPPER(REPLACE(TRIM(section), ' ', '-')) LIKE ?
+        WHERE UPPER(REPLACE(TRIM(section), ' ', '-')) LIKE ? OR UPPER(TRIM(section)) = ?
         ORDER BY section, name
-    """, (like_pattern,)).fetchall()
+    """, (like_pattern, course)).fetchall()
 
-    student_groups = {}
+    all_sections = get_all_sections_for_course(con, course)
+    student_groups = {sec: [] for sec in all_sections}
 
     for row in student_rows:
         section = normalize_section(row["section"])
-
         if section not in student_groups:
             student_groups[section] = []
-
         student_groups[section].append(row)
 
     con.close()
@@ -1642,6 +1724,9 @@ def add_timetable():
         ORDER BY name
     """).fetchall()
 
+    rooms = con.execute("SELECT * FROM rooms ORDER BY room_no").fetchall()
+    sections = get_all_sections(con)
+
     if request.method == "POST":
         day = request.form.get("day", "").strip()
         subject = request.form.get("subject", "").strip().upper()
@@ -1649,12 +1734,15 @@ def add_timetable():
         end_time = request.form.get("end_time", "").strip()
         section = normalize_section(request.form.get("section", ""))
         teacher_id = request.form.get("teacher_id", "").strip()
+        room_no = request.form.get("room_no", "").strip().upper()
 
-        if not day or not subject or not start_time or not end_time or not section or not teacher_id:
+        if not day or not subject or not start_time or not end_time or not section or not teacher_id or not room_no:
             con.close()
             return render_template(
                 "add_timetable.html",
                 teachers=teachers,
+                rooms=rooms,
+                sections=sections,
                 error="All fields are required"
             )
 
@@ -1663,6 +1751,8 @@ def add_timetable():
             return render_template(
                 "add_timetable.html",
                 teachers=teachers,
+                rooms=rooms,
+                sections=sections,
                 error="End time must be greater than start time"
             )
 
@@ -1676,6 +1766,8 @@ def add_timetable():
             return render_template(
                 "add_timetable.html",
                 teachers=teachers,
+                rooms=rooms,
+                sections=sections,
                 error="Invalid teacher selected"
             )
 
@@ -1689,13 +1781,27 @@ def add_timetable():
             return render_template(
                 "add_timetable.html",
                 teachers=teachers,
+                rooms=rooms,
+                sections=sections,
                 error="This timetable entry already exists"
             )
 
+        room_data = con.execute("SELECT room_range FROM rooms WHERE room_no = ?", (room_no,)).fetchone()
+        if not room_data:
+            con.close()
+            return render_template(
+                "add_timetable.html",
+                teachers=teachers,
+                rooms=rooms,
+                sections=sections,
+                error="Selected room does not exist"
+            )
+        room_range_val = room_data["room_range"]
+
         con.execute("""
-            INSERT INTO timetable(day, subject, start_time, end_time, section, teacher_id)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (day, subject, start_time, end_time, section, teacher_id))
+            INSERT INTO timetable(day, subject, start_time, end_time, section, teacher_id, room_no, room_range)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (day, subject, start_time, end_time, section, teacher_id, room_no, room_range_val))
 
         con.commit()
         con.close()
@@ -1703,8 +1809,41 @@ def add_timetable():
         return redirect(url_for("admin_dashboard"))
 
     con.close()
+    return render_template("add_timetable.html", teachers=teachers, rooms=rooms, sections=sections)
 
-    return render_template("add_timetable.html", teachers=teachers)
+@app.route("/admin/add-room", methods=["GET", "POST"])
+def add_room():
+    if "admin_id" not in session:
+        return redirect(url_for("admin_login"))
+
+    if request.method == "POST":
+        room_no = request.form.get("room_no", "").strip().upper()
+        room_range = request.form.get("room_range", "").strip()
+        room_lat = request.form.get("room_lat", "").strip()
+        room_lng = request.form.get("room_lng", "").strip()
+
+        if not room_no or not room_range or not room_lat or not room_lng:
+            return render_template("add_room.html", error="All fields including Location are required")
+            
+        try:
+            room_range_val = int(room_range)
+            room_lat_val = float(room_lat)
+            room_lng_val = float(room_lng)
+        except ValueError:
+            return render_template("add_room.html", error="Range, Latitude and Longitude must be valid numbers")
+            
+        con = get_db()
+        try:
+            con.execute("INSERT INTO rooms (room_no, room_range, room_lat, room_lng) VALUES (?, ?, ?, ?)", (room_no, room_range_val, room_lat_val, room_lng_val))
+            con.commit()
+        except sqlite3.IntegrityError:
+            con.close()
+            return render_template("add_room.html", error="Room already exists")
+            
+        con.close()
+        return redirect(url_for("admin_dashboard"))
+
+    return render_template("add_room.html")
 
 
 @app.route("/admin/delete-timetable/<int:timetable_id>", methods=["POST"])
@@ -1783,30 +1922,41 @@ def add_student():
     if "admin_id" not in session:
         return redirect(url_for("admin_login"))
 
+    selected_course = request.args.get("course", "").strip().upper()
+    con = get_db()
+    all_sections = get_all_sections(con)
+    all_courses = [r["course_name"] for r in con.execute("SELECT course_name FROM courses ORDER BY course_name").fetchall()]
+
     if request.method == "POST":
         name = request.form.get("name", "").strip()
         roll_no = request.form.get("roll_no", "").strip().upper()
         password = request.form.get("password", "").strip()
-        section = normalize_section(request.form.get("section", ""))
+        raw_sec = request.form.get("section", "").strip().upper()
+        
+        if selected_course and not raw_sec.startswith(selected_course + "-") and "-" not in raw_sec:
+            raw_sec = f"{selected_course}-{raw_sec}"
+
+        section = normalize_section(raw_sec)
         photo = request.files.get("photo")
 
         if not name or not roll_no or not password or not section:
-            return render_template("add_student.html", error="All fields are required")
+            con.close()
+            return render_template("add_student.html", error="All fields are required", sections=all_sections, courses=all_courses, selected_course=selected_course)
 
         if not photo or photo.filename == "":
-            return render_template("add_student.html", error="Student photo is required")
+            con.close()
+            return render_template("add_student.html", error="Student photo is required", sections=all_sections, courses=all_courses, selected_course=selected_course)
 
         allowed_extensions = [".jpg", ".jpeg", ".png", ".webp"]
         original_filename = secure_filename(photo.filename)
         ext = os.path.splitext(original_filename)[1].lower()
 
         if ext not in allowed_extensions:
-            return render_template("add_student.html", error="Only JPG, JPEG, PNG, WEBP images are allowed")
+            con.close()
+            return render_template("add_student.html", error="Only JPG, JPEG, PNG, WEBP images are allowed", sections=all_sections, courses=all_courses, selected_course=selected_course)
 
         saved_filename = roll_no + ext
         saved_path = os.path.join(STUDENT_IMAGE_FOLDER, saved_filename)
-
-        con = get_db()
 
         existing = con.execute(
             "SELECT * FROM students WHERE UPPER(roll_no) = ?",
@@ -1815,7 +1965,7 @@ def add_student():
 
         if existing:
             con.close()
-            return render_template("add_student.html", error="Student with this roll number already exists")
+            return render_template("add_student.html", error="Student with this roll number already exists", sections=all_sections, courses=all_courses, selected_course=selected_course)
 
         photo.save(saved_path)
 
@@ -1827,9 +1977,12 @@ def add_student():
         con.commit()
         con.close()
 
+        if selected_course:
+            return redirect(f"/admin-course/{selected_course}/students")
         return redirect(url_for("admin_dashboard"))
 
-    return render_template("add_student.html")
+    con.close()
+    return render_template("add_student.html", sections=all_sections, courses=all_courses, selected_course=selected_course)
 
 
 @app.route("/admin/delete-student/<int:student_id>", methods=["POST"])

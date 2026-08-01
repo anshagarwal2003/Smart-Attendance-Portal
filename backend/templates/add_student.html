@@ -36,8 +36,19 @@
 
         <div class="form-group">
             <label>Course - Section</label>
-            <input type="text" name="section" placeholder="Example: CSE-A, CSE-B, MTECH-A, LAW-A" required>
-            <p class="small-help">Use format like CSE-A, MTECH-A, LAW-A. Course will be created automatically.</p>
+            <input type="text" name="section" id="sectionInput" list="section_list" placeholder="Example: MCA-A, CSE-B" required autocomplete="off" value="{{ request.args.get('course') + '-A' if request.args.get('course') else '' }}">
+            <datalist id="section_list">
+                {% if sections %}
+                    {% for sec in sections %}
+                        <option value="{{ sec }}">{{ sec }}</option>
+                    {% endfor %}
+                {% endif %}
+                {% if request.args.get('course') %}
+                    <option value="{{ request.args.get('course') }}-A">{{ request.args.get('course') }}-A</option>
+                    <option value="{{ request.args.get('course') }}-B">{{ request.args.get('course') }}-B</option>
+                {% endif %}
+            </datalist>
+            <p class="small-help">Use format like <b>MCA-A, CSE-A</b>. Spaces are automatically converted to hyphens.</p>
         </div>
 
         <div class="form-group">
@@ -49,4 +60,13 @@
         <button class="btn primary-btn" type="submit">Add Student</button>
     </form>
 </div>
+
+<script>
+    const sectionInput = document.getElementById('sectionInput');
+    if (sectionInput) {
+        sectionInput.addEventListener('input', function(e) {
+            this.value = this.value.toUpperCase().replace(/\s+/g, '-');
+        });
+    }
+</script>
 {% endblock %}

@@ -1,41 +1,63 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="login-page">
-    <div class="login-left">
-        <p class="tagline">STUDENT ACCESS</p>
-        <h1>Student Login</h1>
-        <p>
-            Join active class sessions, complete face verification and view your subject-wise attendance record.
-        </p>
-
-        <a class="btn secondary-btn" href="/">Back to Home</a>
-    </div>
-
-    <div class="login-card">
-        <div class="login-icon student-icon">S</div>
-
-        <h2>Welcome Student</h2>
-        <p class="muted-text">Enter your roll number and password.</p>
-
-        {% if error %}
-            <div class="error-box">{{ error }}</div>
-        {% endif %}
-
-        <form method="post">
-            <div class="form-group">
-                <label>Roll Number / College ID</label>
-                <input type="text" name="roll_no" placeholder="Example: 23BCON2214" required>
+<div class="container">
+    <div class="login-page">
+        <div class="login-left">
+            <div class="hero-pill">
+                <span>🎓 Student Verified Portal</span>
             </div>
+            <h1 class="hero-new-title" style="font-size: 46px;">Student <span>Portal</span></h1>
+            <p>
+                Join active classroom sessions, complete live facial verification, and track your subject-wise attendance percentage in real-time.
+            </p>
 
-            <div class="form-group">
-                <label>Password</label>
-                <input type="password" name="password" placeholder="Enter Password" required>
+            <ul class="login-feature-list">
+                <li>
+                    <span class="login-feature-icon">📸</span>
+                    <span>Quick Biometric Face & Blink attendance scan</span>
+                </li>
+                <li>
+                    <span class="login-feature-icon">📍</span>
+                    <span>Verified GPS classroom location check-in</span>
+                </li>
+                <li>
+                    <span class="login-feature-icon">📈</span>
+                    <span>Live subject percentage & shortage warnings</span>
+                </li>
+            </ul>
+
+            <a class="btn secondary-btn" href="/">← Back to Home</a>
+        </div>
+
+        <div class="login-card">
+            <div class="login-icon student-icon">🎓</div>
+
+            <h2>Welcome Student</h2>
+            <div class="security-tag">🔒 End-to-End Encrypted Session</div>
+
+            {% if error %}
+                <div class="error-box">{{ error }}</div>
+            {% endif %}
+
+            <form method="post">
+                <div class="form-group">
+                    <label>Roll Number / College ID</label>
+                    <input type="text" name="roll_no" placeholder="Example: 23BCON2214" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" name="password" placeholder="Enter your password" required>
+                </div>
+
+                <button class="btn primary-btn login-btn" type="submit">Login as Student</button>
+            </form>
+
+            <div class="login-help">
+                <span>Use your registered college roll number to log in</span>
             </div>
-
-            <button class="btn primary-btn login-btn" type="submit">Login as Student</button>
-        </form>
-
+        </div>
     </div>
 </div>
 {% endblock %}

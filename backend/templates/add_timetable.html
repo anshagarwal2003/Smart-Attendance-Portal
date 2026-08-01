@@ -65,6 +65,19 @@
             </select>
         </div>
 
+        <div class="form-group">
+            <label>Select Room</label>
+            <select name="room_no" required>
+                <option value="">Select Room</option>
+                {% for room in rooms %}
+                    <option value="{{ room.room_no }}">{{ room.room_no }} (Range: {{ room.room_range }}m)</option>
+                {% endfor %}
+            </select>
+            {% if not rooms %}
+                <p class="small-help" style="color: red;">No rooms found. Please add a room first from the dashboard.</p>
+            {% endif %}
+        </div>
+
         <button class="btn primary-btn" type="submit">Add Timetable</button>
     </form>
 </div>

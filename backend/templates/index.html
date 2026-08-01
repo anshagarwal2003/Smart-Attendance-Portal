@@ -1,20 +1,122 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="hero-official single-hero">
-    <div class="hero-left">
-        <p class="tagline">SMART ATTENDANCE PLATFORM</p>
+<div class="container">
+    <!-- HERO SECTION -->
+    <div class="hero-new">
+        <div class="hero-new-left">
+            <div class="hero-pill">
+                <span>✨ AI Biometric & GPS Geofencing Verified</span>
+            </div>
 
-        <h1>Smart Attendance System</h1>
+            <h1 class="hero-new-title">
+                Next-Gen <span>Smart Attendance</span> & Classroom Verification
+            </h1>
 
-        <p class="official-subtitle">
-            A secure and reliable digital attendance system for academic institutions.
-        </p>
+            <p class="hero-new-desc">
+                Revolutionizing academic attendance with real-time facial recognition, blink anti-spoofing detection, and GPS boundary verification. Built for seamless classroom efficiency.
+            </p>
 
-        <div class="hero-buttons">
-            <a class="btn primary-btn" href="/teacher-login">Teacher Login</a>
-            <a class="btn secondary-btn" href="/student-login">Student Login</a>
-            <a class="btn admin-btn" href="/admin-login">Admin Login</a>
+            <div class="hero-stats-row">
+                <div class="hero-stat-item">
+                    <b>99.8%</b>
+                    <span>Face AI Accuracy</span>
+                </div>
+                <div class="hero-stat-item">
+                    <b>&lt;1 Sec</b>
+                    <span>Verification Time</span>
+                </div>
+                <div class="hero-stat-item">
+                    <b>100%</b>
+                    <span>Proxy-Proof</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="hero-new-right">
+            <div class="hero-img-box">
+                <img src="{{ url_for('static', filename='images/hero_attendance.png') }}" alt="AI Facial Recognition Attendance">
+                <div class="hero-floating-badge">
+                    <span class="floating-dot"></span>
+                    <span><b>Live Biometric AI</b> Active & Secure</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PORTAL ACCESS SECTION -->
+    <div class="section-heading-new">
+        <h2>Choose Your Portal</h2>
+        <p>Select your role below to access your customized dashboard and tools</p>
+    </div>
+
+    <div class="portal-grid-new">
+        <a href="/teacher-login" class="portal-card-new teacher">
+            <div>
+                <div class="portal-icon-box">👨‍🏫</div>
+                <h3>Teacher Portal</h3>
+                <p>Start live facial attendance sessions, monitor student geofencing, download Excel reports, and manage daily lectures.</p>
+            </div>
+            <div class="portal-link-arrow">
+                <span>Access Teacher Login</span>
+                <span>→</span>
+            </div>
+        </a>
+
+        <a href="/student-login" class="portal-card-new student">
+            <div>
+                <div class="portal-icon-box">🎓</div>
+                <h3>Student Portal</h3>
+                <p>Check your real-time subject attendance percentages, view safe/shortage status, and verify classroom check-ins.</p>
+            </div>
+            <div class="portal-link-arrow">
+                <span>Access Student Login</span>
+                <span>→</span>
+            </div>
+        </a>
+
+        <a href="/admin-login" class="portal-card-new admin">
+            <div>
+                <div class="portal-icon-box">🛡️</div>
+                <h3>Admin Portal</h3>
+                <p>Manage courses, sections, timetable schedules, register new student biometrics, and monitor institutional records.</p>
+            </div>
+            <div class="portal-link-arrow">
+                <span>Access Admin Login</span>
+                <span>→</span>
+            </div>
+        </a>
+    </div>
+
+    <!-- FEATURES HIGHLIGHTS -->
+    <div class="section-heading-new">
+        <h2>Why Institutions Choose Smart Attendance</h2>
+        <p>Enterprise-grade security meets effortless daily attendance</p>
+    </div>
+
+    <div class="features-grid-new">
+        <div class="feature-card-new">
+            <div class="feature-icon">🤖</div>
+            <h3>Biometric Face AI</h3>
+            <p>Advanced facial embeddings and real-time blink detection eliminate proxy attendance and photo-spoofing.</p>
+        </div>
+
+        <div class="feature-card-new">
+            <div class="feature-icon">📍</div>
+            <h3>GPS Geofencing</h3>
+            <p>Strict geographic boundaries ensure attendance is only marked when students are physically inside the lecture room.</p>
+        </div>
+
+        <div class="feature-card-new">
+            <div class="feature-icon">⚡</div>
+            <h3>Instant Analytics</h3>
+            <p>Automated attendance calculations, low-attendance warnings, and one-click Excel sheet generation.</p>
+        </div>
+
+        <div class="feature-card-new">
+            <div class="feature-icon">🔒</div>
+            <h3>Bank-Grade Security</h3>
+            <p>Role-based authentication, encrypted data storage, and zero-trust verification for every session.</p>
         </div>
     </div>
 </div>

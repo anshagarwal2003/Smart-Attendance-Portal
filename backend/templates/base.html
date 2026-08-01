@@ -1,19 +1,36 @@
 <!DOCTYPE html>
-<html>
+<html lang="en" data-theme="light">
 <head>
-    <title>Smart Attendance Web</title>
+    <meta charset="UTF-8">
+    <title>Smart Attendance Web - AI Facial Recognition & Geofencing Platform</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Google Fonts: Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 
     <!-- CSS LINK -->
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/style.css') }}">
+
+    <!-- Zero-Flicker Theme Script -->
+    <script>
+        (function() {
+            var savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        })();
+    </script>
 </head>
 <body>
 
 <nav class="navbar">
-    <div class="nav-brand">
+    <a href="/" class="nav-brand" style="text-decoration: none;">
         <span class="logo-circle">SA</span>
-        <span>Smart Attendance Web</span>
-    </div>
+        <div class="brand-text">
+            <span class="brand-title">Smart Attendance</span>
+            <span class="brand-subtitle">AI Verified Platform</span>
+        </div>
+    </a>
 
     <div class="nav-links">
         <a href="/">Home</a>
@@ -21,12 +38,46 @@
         <a href="/student-login">Student</a>
         <a href="/admin-login">Admin</a>
         <a href="/logout">Logout</a>
+        <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" aria-label="Toggle Theme">
+            <span id="themeIcon">🌙</span>
+            <span id="themeText">Dark</span>
+        </button>
     </div>
 </nav>
 
 <div class="page-wrapper">
     {% block content %}{% endblock %}
 </div>
+
+<script>
+    function toggleTheme() {
+        const html = document.documentElement;
+        const current = html.getAttribute('data-theme') || 'light';
+        const nextTheme = current === 'dark' ? 'light' : 'dark';
+        html.setAttribute('data-theme', nextTheme);
+        localStorage.setItem('theme', nextTheme);
+        updateThemeButton(nextTheme);
+    }
+
+    function updateThemeButton(theme) {
+        const icon = document.getElementById('themeIcon');
+        const text = document.getElementById('themeText');
+        if (icon && text) {
+            if (theme === 'dark') {
+                icon.textContent = '☀️';
+                text.textContent = 'Light';
+            } else {
+                icon.textContent = '🌙';
+                text.textContent = 'Dark';
+            }
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const saved = localStorage.getItem('theme') || 'light';
+        updateThemeButton(saved);
+    });
+</script>
 
 </body>
 </html>

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dashboard-header">
+    <div>
+        <p class="tagline">Admin Panel</p>
+        <h1>Add Room</h1>
+        <p class="muted-text">Create a new room and set its smart attendance range.</p>
+    </div>
+
+    <div>
+        <a class="btn secondary-btn" href="/admin-dashboard">Back</a>
+    </div>
+</div>
+
+<div class="form-card">
+    {% if error %}
+        <div class="error-box">{{ error }}</div>
+    {% endif %}
+
+    <form method="post">
+        <div class="form-group">
+            <label>Room Number</label>
+            <input type="text" name="room_no" placeholder="Example: 101, Lab-3, Seminar Hall" required>
+        </div>
+
+        <div class="form-group">
+            <label>Attendance Range (in meters)</label>
+            <input type="number" name="room_range" placeholder="Example: 10, 15, 20" value="10" required>
+            <p class="small-help">Distance in meters within which attendance can be marked. Default is 10m.</p>
+        </div>
+
+        <div class="form-group">
+            <label>Location (Latitude / Longitude)</label>
+            <div style="display: flex; gap: 10px;">
+                <input type="text" name="room_lat" id="room_lat" placeholder="Latitude" required readonly style="flex: 1;">
+                <input type="text" name="room_lng" id="room_lng" placeholder="Longitude" required readonly style="flex: 1;">
+            </div>
+            <button type="button" class="btn secondary-btn" onclick="getLocation()" style="margin-top: 10px; width: 100%;">📍 Get Current Location</button>
+            <p class="small-help">Stand inside the room and click the button to set GPS coordinates.</p>
+        </div>
+
+        <button class="btn primary-btn" type="submit">Add Room</button>
+    </form>
+</div>
+
+<script>
+function getLocation() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                document.getElementById('room_lat').value = position.coords.latitude;
+                document.getElementById('room_lng').value = position.coords.longitude;
+            },
+            function(error) {
+                alert("Error getting location: " + error.message);
+            },
+            { enableHighAccuracy: true }
+        );
+    } else {
+        alert("Geolocation is not supported by this browser.");
+    }
+}
+</script>
+{% endblock %}
