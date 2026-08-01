@@ -1,4 +1,4 @@
-notepad templates\teacher_section.htmlnotepad templates\teacher_section.html{% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block content %}
 <div class="dashboard-header">
@@ -13,6 +13,30 @@ notepad templates\teacher_section.htmlnotepad templates\teacher_section.html{% e
     <div class="date-card">
         <span>Today</span>
         <h2>{{ today }}</h2>
+    </div>
+</div>
+
+<!-- EXECUTIVE KPI STATS BAR -->
+<div class="stats-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; margin-bottom: 24px;">
+    <div class="stat-card" style="background: linear-gradient(135deg, rgba(37, 99, 235, 0.08), rgba(29, 78, 216, 0.15)); border: 1px solid rgba(37, 99, 235, 0.2); padding: 20px; border-radius: 20px;">
+        <span style="font-size: 13px; font-weight: 700; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.5px;">Ready to Start</span>
+        <h2 style="font-size: 32px; font-weight: 900; margin: 8px 0 0; color: inherit;">{{ can_start_classes|length }}</h2>
+        <p class="muted-text" style="margin: 4px 0 0; font-size: 13px;">In allowed 20-min start window</p>
+    </div>
+    <div class="stat-card" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(5, 150, 105, 0.15)); border: 1px solid rgba(16, 185, 129, 0.2); padding: 20px; border-radius: 20px;">
+        <span style="font-size: 13px; font-weight: 700; color: #10b981; text-transform: uppercase; letter-spacing: 0.5px;">Active Live Class</span>
+        <h2 style="font-size: 32px; font-weight: 900; margin: 8px 0 0; color: inherit;">{% if active_session %}1{% else %}0{% endif %}</h2>
+        <p class="muted-text" style="margin: 4px 0 0; font-size: 13px;">15-min student attendance window</p>
+    </div>
+    <div class="stat-card" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(217, 119, 6, 0.15)); border: 1px solid rgba(245, 158, 11, 0.2); padding: 20px; border-radius: 20px;">
+        <span style="font-size: 13px; font-weight: 700; color: #f59e0b; text-transform: uppercase; letter-spacing: 0.5px;">Upcoming Lectures</span>
+        <h2 style="font-size: 32px; font-weight: 900; margin: 8px 0 0; color: inherit;">{{ upcoming_classes|length }}</h2>
+        <p class="muted-text" style="margin: 4px 0 0; font-size: 13px;">Scheduled for today</p>
+    </div>
+    <div class="stat-card" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.08), rgba(109, 40, 217, 0.15)); border: 1px solid rgba(139, 92, 246, 0.2); padding: 20px; border-radius: 20px;">
+        <span style="font-size: 13px; font-weight: 700; color: #8b5cf6; text-transform: uppercase; letter-spacing: 0.5px;">Assigned Sections</span>
+        <h2 style="font-size: 32px; font-weight: 900; margin: 8px 0 0; color: inherit;">{{ sections|length }}</h2>
+        <p class="muted-text" style="margin: 4px 0 0; font-size: 13px;">Managed faculty sections</p>
     </div>
 </div>
 

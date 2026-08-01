@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify, send_from_directory, send_file
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, send_from_directory, send_file, flash
 from werkzeug.utils import secure_filename
 
 import sqlite3
@@ -82,7 +82,7 @@ CLASSROOM_LAT = 26.9124
 CLASSROOM_LNG = 75.7873
 TEACHER_ALLOWED_RADIUS_METERS = 100000
 
-TEACHER_ACTIVATION_LIMIT_MINUTES = 15
+TEACHER_ACTIVATION_LIMIT_MINUTES = 20
 FACE_MATCH_THRESHOLD = 0.50
 
 PROOF_FOLDER = os.environ.get("PROOF_FOLDER", os.path.join(DATA_DIR, "proof_images"))
@@ -145,7 +145,11 @@ def get_all_sections_for_course(con, course):
 
 
 def get_all_sections(con):
-    sections_set = set()
+    sections_set = {
+        "B.TECH-CS-A", "B.TECH-CS-B", "B.TECH-IT-A", "B.TECH-IT-B",
+        "B.TECH-AI-A", "B.TECH-AI-B", "MCA-A", "MCA-B",
+        "MBA-A", "MBA-B", "BCA-A", "BCA-B"
+    }
     rows = con.execute("""
         SELECT course_name, section_name FROM sections
     """).fetchall()
@@ -847,19 +851,24 @@ def start_class(timetable_id):
         con.close()
 
         if existing_session["status"] == "ACTIVE":
-            return "This class is already active today. Duplicate class session is not allowed."
+            flash("This class session is already active today. Duplicate sessions are not allowed.", "error")
+            return redirect(url_for("teacher_dashboard"))
 
         if existing_session["status"] == "CLOSED":
-            return "This class attendance is already completed today. Duplicate record is not allowed."
+            flash("Attendance for this class is already completed today. Duplicate sessions are not allowed.", "error")
+            return redirect(url_for("teacher_dashboard"))
 
         if existing_session["status"] == "NOT_HELD":
-            return "This class was already marked as Not Held today. Duplicate record is not allowed."
+            flash("This class was already marked as Not Held today. Duplicate sessions are not allowed.", "error")
+            return redirect(url_for("teacher_dashboard"))
 
-        return "This class record already exists today. Duplicate record is not allowed."
+        flash("This class record already exists today. Duplicate sessions are not allowed.", "error")
+        return redirect(url_for("teacher_dashboard"))
 
     if now < class_start:
         con.close()
-        return f"Class abhi start nahi hui hai. Start time: {class_data['start_time']}"
+        flash(f"Class has not started yet. Start time: {class_data['start_time']}", "warning")
+        return redirect(url_for("teacher_dashboard"))
 
     if now > activation_deadline:
         con.execute("""
@@ -883,15 +892,18 @@ def start_class(timetable_id):
         con.commit()
         con.close()
 
-        return "Class Not Held. Teacher activation time over. Students ki attendance affect nahi hogi."
+        flash("Class marked as Not Held. Teacher activation window (20 minutes) has expired.", "error")
+        return redirect(url_for("teacher_dashboard"))
 
     if now > class_end:
         con.close()
-        return "Class time already over."
+        flash("Class time has already ended.", "error")
+        return redirect(url_for("teacher_dashboard"))
 
     if class_data["room_lat"] is None or class_data["room_lng"] is None:
         con.close()
-        return "Room location not set. Please ask Admin to set the GPS location for this room."
+        flash("Room location not set. Please ask Admin to set the GPS location for this room.", "error")
+        return redirect(url_for("teacher_dashboard"))
 
     teacher_distance = calculate_distance(
         float(teacher_lat),
@@ -904,7 +916,8 @@ def start_class(timetable_id):
 
     if teacher_distance > allowed_range:
         con.close()
-        return f"Blocked: Teacher is outside the room range. Distance: {int(teacher_distance)} meters (Allowed: {allowed_range}m)"
+        flash(f"Blocked: Teacher is outside the room range. Distance: {int(teacher_distance)} meters (Allowed: {allowed_range}m)", "error")
+        return redirect(url_for("teacher_dashboard"))
 
     activated_at = now.strftime("%H:%M:%S")
     attendance_end = (now + timedelta(minutes=ATTENDANCE_WINDOW_MINUTES)).strftime("%H:%M:%S")
@@ -1804,16 +1817,7 @@ def add_timetable():
             )
 
         room_data = con.execute("SELECT room_range FROM rooms WHERE UPPER(room_no) = ?", (room_no.upper(),)).fetchone()
-        if not room_data:
-            con.close()
-            return render_template(
-                "add_timetable.html",
-                teachers=teachers,
-                rooms=rooms,
-                sections=sections,
-                error="Selected room does not exist"
-            )
-        room_range_val = room_data["room_range"]
+        room_range_val = room_data["room_range"] if room_data else 100
 
         con.execute("""
             INSERT INTO timetable(day, subject, start_time, end_time, section, teacher_id, room_no, room_range)
