@@ -50,8 +50,17 @@
 
         <div class="form-group">
             <label>Course - Section</label>
-            <input type="text" name="section" placeholder="Example: CSE-A, MTECH-A, LAW-A" required>
-            <p class="small-help">Use same section format as students. Example: MTECH-A</p>
+            <select name="section" required>
+                <option value="">Select Course - Section</option>
+                {% for sec in sections %}
+                    <option value="{{ sec }}">{{ sec }}</option>
+                {% endfor %}
+            </select>
+            {% if not sections %}
+                <p class="small-help" style="color: red;">No sections found. Please register a student or section first.</p>
+            {% else %}
+                <p class="small-help">Select an existing course section for this timetable.</p>
+            {% endif %}
         </div>
 
         <div class="form-group">

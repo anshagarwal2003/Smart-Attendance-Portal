@@ -401,6 +401,23 @@ def init_db():
 
     con.commit()
 
+    # Automatically migrate missing columns in existing SQLite databases
+    migrations = [
+        ("timetable", "room_no", "TEXT"),
+        ("timetable", "room_range", "INTEGER"),
+        ("rooms", "room_lat", "REAL"),
+        ("rooms", "room_lng", "REAL"),
+        ("class_sessions", "timetable_id", "INTEGER"),
+        ("attendance", "distance_meters", "REAL"),
+        ("attendance", "proof_image", "TEXT"),
+    ]
+    for table_name, col_name, col_type in migrations:
+        try:
+            cur.execute(f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_type}")
+        except Exception:
+            pass
+    con.commit()
+
     admin_count = cur.execute("SELECT COUNT(*) AS total FROM admins").fetchone()["total"]
     if admin_count == 0:
         cur.execute(
@@ -1786,7 +1803,7 @@ def add_timetable():
                 error="This timetable entry already exists"
             )
 
-        room_data = con.execute("SELECT room_range FROM rooms WHERE room_no = ?", (room_no,)).fetchone()
+        room_data = con.execute("SELECT room_range FROM rooms WHERE UPPER(room_no) = ?", (room_no.upper(),)).fetchone()
         if not room_data:
             con.close()
             return render_template(
