@@ -84,15 +84,21 @@
     {% if course_groups %}
     <div class="section-card-grid">
         {% for course, data in course_groups.items() %}
-        <a class="section-click-card" href="/admin-course/{{ course }}">
-            <div>
-                <p class="tagline">Course</p>
-                <h2>{{ course }}</h2>
-                <p>{{ data.sections|length }} Sections | {{ data.student_count }} Students | {{ data.timetable_count }} Classes</p>
+        <div class="section-click-card" style="display: flex; justify-content: space-between; align-items: center; position: relative;">
+            <a href="/admin-course/{{ course }}" style="text-decoration: none; flex: 1;">
+                <div>
+                    <p class="tagline">Course</p>
+                    <h2>{{ course }}</h2>
+                    <p>{{ data.sections|length }} Sections | {{ data.student_count }} Students | {{ data.timetable_count }} Classes</p>
+                </div>
+            </a>
+            <div style="display: flex; gap: 12px; align-items: center; z-index: 2;">
+                <a href="/admin-course/{{ course }}" class="status-pill active" style="text-decoration: none;">Open →</a>
+                <form method="post" action="/admin/delete-course/{{ course }}" onsubmit="return confirm('Are you sure you want to delete course {{ course }} and all its sections/data?');" style="margin: 0;">
+                    <button type="submit" class="btn danger-btn" style="padding: 6px 12px; font-size: 13px;" title="Delete Course">🗑️ Delete</button>
+                </form>
             </div>
-
-            <span>Open →</span>
-        </a>
+        </div>
         {% endfor %}
     </div>
     {% else %}
@@ -112,6 +118,7 @@
             <tr>
                 <th>Name</th>
                 <th>Teacher ID</th>
+                <th>Password</th>
                 <th>Action</th>
             </tr>
 
@@ -119,6 +126,11 @@
             <tr>
                 <td><b>{{ teacher.name }}</b></td>
                 <td>{{ teacher.teacher_id }}</td>
+                <td>
+                    <span id="pwd_t_{{ teacher.id }}" style="display: none; font-family: monospace; font-weight: bold; color: #38bdf8;">{{ teacher.password }}</span>
+                    <span id="mask_t_{{ teacher.id }}">••••••••</span>
+                    <button type="button" class="btn secondary-btn" style="padding: 4px 8px; font-size: 11px; margin-left: 8px;" onclick="togglePwd('t_{{ teacher.id }}')">👁️ View</button>
+                </td>
                 <td>
                     <form method="post" action="/admin/delete-teacher/{{ teacher.id }}" onsubmit="return confirm('Delete this teacher? Assigned timetable entries will also be deleted.');">
                         <button class="btn danger-btn" type="submit">Delete</button>
@@ -129,7 +141,21 @@
         </table>
     </div>
     {% else %}
-        <p class="muted-text">No teachers found.</p>
+        <p class="muted-text">No teacher added yet.</p>
     {% endif %}
+
+    <script>
+    function togglePwd(id) {
+        const pwdEl = document.getElementById('pwd_' + id);
+        const maskEl = document.getElementById('mask_' + id);
+        if (pwdEl.style.display === 'none') {
+            pwdEl.style.display = 'inline';
+            maskEl.style.display = 'none';
+        } else {
+            pwdEl.style.display = 'none';
+            maskEl.style.display = 'inline';
+        }
+    }
+    </script>
 </div>
 {% endblock %}

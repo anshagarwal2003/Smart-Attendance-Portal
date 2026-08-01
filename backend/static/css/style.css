@@ -2652,12 +2652,35 @@ canvas {
 [data-theme="dark"] .summary-box.total-box {
     border-top: 4px solid #3b82f6 !important;
 }
-[data-theme="dark"] .summary-box.present-box {
-    border-top: 4px solid #10b981 !important;
-}
-[data-theme="dark"] .summary-box.percent-box {
-    border-top: 4px solid #8b5cf6 !important;
-}
 [data-theme="dark"] .summary-box.absent-box {
     border-top: 4px solid #ef4444 !important;
+}
+
+/* ========================================================
+   HIGH CONTRAST BRIGHT WHITE TEXT FOR ALL DARK MODE CARDS
+   ======================================================== */
+[data-theme="dark"] .card p,
+[data-theme="dark"] .card span,
+[data-theme="dark"] .card h1,
+[data-theme="dark"] .card h2,
+[data-theme="dark"] .card h3,
+[data-theme="dark"] .card h4,
+[data-theme="dark"] .card div,
+[data-theme="dark"] .card b,
+[data-theme="dark"] .card strong,
+[data-theme="dark"] .summary-box p,
+[data-theme="dark"] .summary-box div,
+[data-theme="dark"] .summary-box b,
+[data-theme="dark"] .teacher-section-card p,
+[data-theme="dark"] .teacher-section-card div,
+[data-theme="dark"] .teacher-section-card h2,
+[data-theme="dark"] .teacher-section-card h3,
+[data-theme="dark"] .teacher-section-card span,
+[data-theme="dark"] .muted-text {
+    color: #f8fafc !important;
+}
+
+[data-theme="dark"] .tagline {
+    color: #38bdf8 !important;
+    font-weight: 800 !important;
 }

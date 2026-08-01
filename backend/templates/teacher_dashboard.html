@@ -178,6 +178,45 @@
     {% endif %}
 </div>
 
+<!-- TODAY'S COMPLETE SCHEDULE TABLE (TODAY CLASSES) -->
+<div class="card">
+    <div class="card-title-row">
+        <h2>Today's Complete Schedule (Today Classes)</h2>
+        <span class="status-pill active">{{ today_all_classes|length }} Classes Today</span>
+    </div>
+
+    {% if today_all_classes %}
+    <div class="table-wrapper">
+        <table>
+            <tr>
+                <th>Time</th>
+                <th>Subject</th>
+                <th>Section</th>
+                <th>Room No</th>
+                <th>Status</th>
+            </tr>
+            {% for cls in today_all_classes %}
+            <tr>
+                <td><b>{{ cls.start_time }} - {{ cls.end_time }}</b></td>
+                <td><b>{{ cls.subject }}</b></td>
+                <td>{{ cls.section }}</td>
+                <td><span style="background: rgba(59, 130, 246, 0.2); padding: 4px 10px; border-radius: 8px; border: 1px solid #3b82f6; font-weight: 700; color: #38bdf8;">{{ cls.room_no or 'N/A' }}</span></td>
+                <td>
+                    {% if active_session and active_session.timetable_id == cls.id %}
+                        <span class="status-pill active">LIVE NOW</span>
+                    {% else %}
+                        <span class="status-pill waiting">Scheduled</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+    {% else %}
+        <p class="muted-text">No classes scheduled for today ({{ today }}).</p>
+    {% endif %}
+</div>
+
 <div class="card">
     <div class="card-title-row">
         <h2>Your Sections</h2>
@@ -239,9 +278,9 @@ function startClassWithLocation(form) {
             form.submit();
         },
         {
-            enableHighAccuracy: true,
-            timeout: 8000,
-            maximumAge: 0
+            enableHighAccuracy: false,
+            timeout: 5000,
+            maximumAge: 60000
         }
     );
 

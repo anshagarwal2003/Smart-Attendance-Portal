@@ -412,6 +412,8 @@ def init_db():
         ("timetable", "extension_mins", "INTEGER DEFAULT 0"),
         ("rooms", "room_lat", "REAL"),
         ("rooms", "room_lng", "REAL"),
+        ("students", "email", "TEXT"),
+        ("teachers", "email", "TEXT"),
         ("class_sessions", "timetable_id", "INTEGER"),
         ("attendance", "distance_meters", "REAL"),
         ("attendance", "proof_image", "TEXT"),
@@ -540,6 +542,65 @@ def student_login():
     return render_template("student_login.html")
 
 
+@app.route("/forgot-password/<role>", methods=["GET", "POST"])
+def forgot_password(role):
+    if role not in ["student", "teacher"]:
+        return redirect(url_for("home"))
+
+    if request.method == "POST":
+        recovery_type = request.form.get("recovery_type", "username")
+        identifier = request.form.get("identifier", "").strip()
+
+        if not identifier:
+            return render_template("forgot_password.html", role=role, error="Please enter your registered Email ID or College Username/ID.")
+
+        con = get_db()
+        if role == "student":
+            row = con.execute("""
+                SELECT * FROM students 
+                WHERE LOWER(email) = LOWER(?) OR UPPER(roll_no) = UPPER(?)
+            """, (identifier, identifier)).fetchone()
+            user_label = "Student Roll Number"
+            cred_val = row["roll_no"] if row else ""
+        else:
+            row = con.execute("""
+                SELECT * FROM teachers 
+                WHERE LOWER(email) = LOWER(?) OR UPPER(teacher_id) = UPPER(?)
+            """, (identifier, identifier)).fetchone()
+            user_label = "Teacher Employee ID"
+            cred_val = row["teacher_id"] if row else ""
+
+        con.close()
+
+        if not row:
+            return render_template("forgot_password.html", role=role, error=f"No registered {role} account found with '{identifier}' in college records.")
+
+        recipient_email = row["email"] if (row["email"] and str(row["email"]).strip()) else f"{cred_val.lower()}@college.edu"
+
+        if recovery_type == "username":
+            msg = (
+                f"✅ Account Verified! We have sent your registered College Username/ID to your email:\n"
+                f"📧 {recipient_email}\n\n"
+                f"📌 [DEMO EMAIL INBOX PREVIEW]\n"
+                f"Subject: College Account Recovery — Your {user_label}\n"
+                f"Message: Hello {row['name']},\n"
+                f"Your registered College {user_label} is:  {cred_val}"
+            )
+        else:
+            msg = (
+                f"✅ Account Verified! We have sent your registered College Password to your email:\n"
+                f"📧 {recipient_email}\n\n"
+                f"📌 [DEMO EMAIL INBOX PREVIEW]\n"
+                f"Subject: College Account Recovery — Your Password\n"
+                f"Message: Hello {row['name']} ({cred_val}),\n"
+                f"Your registered College Password is:  {row['password']}"
+            )
+
+        return render_template("forgot_password.html", role=role, success=msg)
+
+    return render_template("forgot_password.html", role=role)
+
+
 @app.route("/teacher-dashboard")
 def teacher_dashboard():
     if "teacher_db_id" not in session:
@@ -643,7 +704,8 @@ def teacher_dashboard():
         sections=sections,
         active_session=active_session,
         upcoming_classes=upcoming_classes,
-        can_start_classes=can_start_classes
+        can_start_classes=can_start_classes,
+        today_all_classes=today_classes_raw
     )
 
 
@@ -917,7 +979,9 @@ def start_class(timetable_id):
         float(class_data["room_lng"])
     )
 
-    allowed_range = class_data["room_range"] if class_data["room_range"] else TEACHER_ALLOWED_RADIUS_METERS
+    # Smart indoor GPS buffer: ensure at least 1000m radius so indoor Wi-Fi/laptop GPS drift doesn't falsely block teacher
+    base_range = class_data["room_range"] if class_data["room_range"] else TEACHER_ALLOWED_RADIUS_METERS
+    allowed_range = max(int(base_range), 1000)
 
     if teacher_distance > allowed_range:
         con.close()
@@ -968,7 +1032,8 @@ def start_class(timetable_id):
     con.commit()
     con.close()
 
-    return redirect(url_for("teacher_section", section=normalized_section))
+    flash(f"Class started successfully! Session Code is {session_code}. Students can mark attendance now.", "success")
+    return redirect(url_for("teacher_dashboard"))
 
 
 @app.route("/close-class/<int:session_id>", methods=["POST"])
@@ -1205,15 +1270,6 @@ def api_mark_attendance():
         con.close()
         return jsonify(success=False, message="Already verified for this class")
 
-    face_ok, face_message = verify_student_face(image_data, student["roll_no"])
-
-    if not face_ok:
-        con.close()
-        return jsonify(
-            success=False,
-            message="Face verification failed: " + face_message
-        )
-
     if active_session["room_lat"] is None or active_session["room_lng"] is None:
         con.close()
         return jsonify(success=False, message="Room location is not configured. Admin needs to set GPS for this room.")
@@ -1225,13 +1281,24 @@ def api_mark_attendance():
         float(active_session["room_lng"])
     )
 
-    allowed_range = active_session["room_range"] if active_session["room_range"] else ALLOWED_RADIUS_METERS
+    # Smart indoor GPS buffer: ensure at least 500m radius so indoor Wi-Fi/laptop GPS drift doesn't falsely block student
+    base_range = active_session["room_range"] if active_session["room_range"] else ALLOWED_RADIUS_METERS
+    allowed_range = max(int(base_range), 500)
 
     if distance > allowed_range:
         con.close()
         return jsonify(
             success=False,
-            message=f"Blocked: You are outside allowed radius. Distance: {int(distance)} meters (Allowed: {allowed_range}m)"
+            message=f"Blocked: You are outside allowed classroom radius. Distance: {int(distance)} meters (Allowed: {allowed_range}m)"
+        )
+
+    face_ok, face_message = verify_student_face(image_data, student["roll_no"])
+
+    if not face_ok:
+        con.close()
+        return jsonify(
+            success=False,
+            message="Face verification failed: " + face_message
         )
 
     proof_filename = save_proof_image(image_data, student["roll_no"], session_id)
@@ -1687,6 +1754,7 @@ def add_teacher():
         name = request.form.get("name", "").strip()
         teacher_id = request.form.get("teacher_id", "").strip()
         password = request.form.get("password", "").strip()
+        email = request.form.get("email", "").strip()
 
         if not name or not teacher_id or not password:
             return render_template("add_teacher.html", error="All fields are required")
@@ -1703,9 +1771,9 @@ def add_teacher():
             return render_template("add_teacher.html", error="Teacher ID already exists")
 
         con.execute("""
-            INSERT INTO teachers(name, teacher_id, password)
-            VALUES (?, ?, ?)
-        """, (name, teacher_id, password))
+            INSERT INTO teachers(name, teacher_id, password, email)
+            VALUES (?, ?, ?, ?)
+        """, (name, teacher_id, password, email))
 
         con.commit()
         con.close()
@@ -1957,6 +2025,24 @@ def add_course():
     return render_template("add_course.html")
 
 
+@app.route("/admin/delete-course/<course_name>", methods=["POST"])
+def delete_course(course_name):
+    if "admin_id" not in session:
+        return redirect(url_for("admin_login"))
+
+    con = get_db()
+    c_upper = course_name.strip().upper()
+    con.execute("DELETE FROM courses WHERE UPPER(course_name) = ?", (c_upper,))
+    con.execute("DELETE FROM sections WHERE UPPER(course_name) = ?", (c_upper,))
+    con.execute("DELETE FROM timetable WHERE UPPER(section) LIKE ?", (c_upper + "%",))
+    con.execute("DELETE FROM students WHERE UPPER(section) LIKE ?", (c_upper + "%",))
+    con.commit()
+    con.close()
+
+    flash(f"Course {course_name} and its associated sections were deleted successfully!", "success")
+    return redirect(url_for("admin_dashboard"))
+
+
 @app.route("/admin/add-section", methods=["GET", "POST"])
 def add_section():
     if "admin_id" not in session:
@@ -2001,6 +2087,7 @@ def add_student():
         name = request.form.get("name", "").strip()
         roll_no = request.form.get("roll_no", "").strip().upper()
         password = request.form.get("password", "").strip()
+        email = request.form.get("email", "").strip()
         raw_sec = request.form.get("section", "").strip().upper()
         
         if selected_course and not raw_sec.startswith(selected_course + "-") and "-" not in raw_sec:
@@ -2040,9 +2127,9 @@ def add_student():
         photo.save(saved_path)
 
         con.execute("""
-            INSERT INTO students(name, roll_no, password, section)
-            VALUES (?, ?, ?, ?)
-        """, (name, roll_no, password, section))
+            INSERT INTO students(name, roll_no, password, section, email)
+            VALUES (?, ?, ?, ?, ?)
+        """, (name, roll_no, password, section, email))
 
         con.commit()
         con.close()

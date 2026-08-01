@@ -37,6 +37,7 @@
                         <th>Name</th>
                         <th>Roll No</th>
                         <th>Section</th>
+                        <th>Password</th>
                         <th>Action</th>
                     </tr>
 
@@ -45,6 +46,11 @@
                         <td><b>{{ student.name }}</b></td>
                         <td>{{ student.roll_no }}</td>
                         <td>{{ student.section }}</td>
+                        <td>
+                            <span id="pwd_s_{{ student.id }}" style="display: none; font-family: monospace; font-weight: bold; color: #38bdf8;">{{ student.password }}</span>
+                            <span id="mask_s_{{ student.id }}">••••••••</span>
+                            <button type="button" class="btn secondary-btn" style="padding: 4px 8px; font-size: 11px; margin-left: 8px;" onclick="togglePwd('s_{{ student.id }}')">👁️ View</button>
+                        </td>
                         <td>
                             <form method="post" action="/admin/delete-student/{{ student.id }}" onsubmit="return confirm('Delete this student?');">
                                 <button class="btn danger-btn" type="submit">Delete</button>
@@ -59,5 +65,19 @@
     {% else %}
         <p class="muted-text">No students found for this course.</p>
     {% endif %}
+
+    <script>
+    function togglePwd(id) {
+        const pwdEl = document.getElementById('pwd_' + id);
+        const maskEl = document.getElementById('mask_' + id);
+        if (pwdEl.style.display === 'none') {
+            pwdEl.style.display = 'inline';
+            maskEl.style.display = 'none';
+        } else {
+            pwdEl.style.display = 'none';
+            maskEl.style.display = 'inline';
+        }
+    }
+    </script>
 </div>
 {% endblock %}
