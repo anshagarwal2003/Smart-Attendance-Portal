@@ -2590,3 +2590,74 @@ canvas {
 [data-theme="dark"] .stat-card h2 {
     color: #f8fafc !important;
 }
+
+/* ========================================================
+   UNIVERSAL DARK MODE OVERRIDES (ZERO WHITE CARDS/FLASHES)
+   ======================================================== */
+[data-theme="dark"] .card,
+[data-theme="dark"] .form-card,
+[data-theme="dark"] .login-card,
+[data-theme="dark"] .summary-box,
+[data-theme="dark"] .stat-card,
+[data-theme="dark"] .subject-click-card,
+[data-theme="dark"] .final-subject-card,
+[data-theme="dark"] .teacher-section-card,
+[data-theme="dark"] .class-mini-card,
+[data-theme="dark"] .teacher-ready-card,
+[data-theme="dark"] .teacher-upcoming-card,
+[data-theme="dark"] .teacher-live-card,
+[data-theme="dark"] .student-subject-card,
+[data-theme="dark"] .history-card,
+[data-theme="dark"] .scan-box,
+[data-theme="dark"] .result-box,
+[data-theme="dark"] .session-box,
+[data-theme="dark"] .admin-action-card,
+[data-theme="dark"] .portal-card-new,
+[data-theme="dark"] .feature-card-new,
+[data-theme="dark"] .empty-state,
+[data-theme="dark"] .table-box,
+[data-theme="dark"] .date-card,
+[data-theme="dark"] .hero-stat-item,
+[data-theme="dark"] .login-illustration-box {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    color: #f8fafc !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45) !important;
+}
+
+[data-theme="dark"] .summary-box h2,
+[data-theme="dark"] .summary-box span,
+[data-theme="dark"] .stat-card h2,
+[data-theme="dark"] .stat-card span,
+[data-theme="dark"] .subject-click-card h2,
+[data-theme="dark"] .subject-click-card p,
+[data-theme="dark"] .subject-click-card span,
+[data-theme="dark"] .final-subject-card h2,
+[data-theme="dark"] .final-subject-card p,
+[data-theme="dark"] .final-subject-card span,
+[data-theme="dark"] .class-mini-card h2,
+[data-theme="dark"] .class-mini-card p,
+[data-theme="dark"] .admin-action-card h3,
+[data-theme="dark"] .admin-action-card p,
+[data-theme="dark"] .portal-card-new h3,
+[data-theme="dark"] .portal-card-new p,
+[data-theme="dark"] .feature-card-new h3,
+[data-theme="dark"] .feature-card-new p,
+[data-theme="dark"] .card-title-row h2,
+[data-theme="dark"] .table-box th,
+[data-theme="dark"] .table-box td {
+    color: #f8fafc !important;
+}
+
+[data-theme="dark"] .summary-box.total-box {
+    border-top: 4px solid #3b82f6 !important;
+}
+[data-theme="dark"] .summary-box.present-box {
+    border-top: 4px solid #10b981 !important;
+}
+[data-theme="dark"] .summary-box.percent-box {
+    border-top: 4px solid #8b5cf6 !important;
+}
+[data-theme="dark"] .summary-box.absent-box {
+    border-top: 4px solid #ef4444 !important;
+}

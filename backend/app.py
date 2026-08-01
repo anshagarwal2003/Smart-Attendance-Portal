@@ -1816,6 +1816,21 @@ def add_timetable():
                 error="This timetable entry already exists"
             )
 
+        teacher_overlap = con.execute("""
+            SELECT * FROM timetable
+            WHERE day = ? AND teacher_id = ? AND start_time < ? AND end_time > ?
+        """, (day, teacher_id, end_time, start_time)).fetchone()
+
+        if teacher_overlap:
+            con.close()
+            return render_template(
+                "add_timetable.html",
+                teachers=teachers,
+                rooms=rooms,
+                sections=sections,
+                error=f"Teacher is already allotted to another class ({teacher_overlap['subject']} for {teacher_overlap['section']} from {teacher_overlap['start_time']} to {teacher_overlap['end_time']})!"
+            )
+
         room_data = con.execute("SELECT room_range FROM rooms WHERE UPPER(room_no) = ?", (room_no.upper(),)).fetchone()
         room_range_val = room_data["room_range"] if room_data else 100
 
