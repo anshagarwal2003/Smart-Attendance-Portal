@@ -49,19 +49,49 @@
         </div>
 
         <div class="form-group">
-            <label>Course - Section</label>
-            <select name="section" required>
-                <option value="">Select Course - Section</option>
+            <label>1. Select Course / Batch</label>
+            <select id="courseSelect" onchange="filterSections()" style="margin-bottom: 14px;">
+                <option value="ALL">All Created Batches / Courses</option>
+                {% if course_sections_map %}
+                    {% for course_name in course_sections_map.keys() %}
+                        <option value="{{ course_name }}">{{ course_name }}</option>
+                    {% endfor %}
+                {% endif %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>2. Select Section</label>
+            <select name="section" id="sectionSelect" required>
+                <option value="">Select Section</option>
                 {% for sec in sections %}
-                    <option value="{{ sec }}">{{ sec }}</option>
+                    {% set c_prefix = sec.split('-')[0] if '-' in sec else 'GENERAL' %}
+                    <option value="{{ sec }}" data-course="{{ c_prefix }}">{{ sec }}</option>
                 {% endfor %}
             </select>
             {% if not sections %}
-                <p class="small-help" style="color: red;">No sections found. Please register a student or section first.</p>
+                <p class="small-help" style="color: #ef4444; font-weight: 700;">No sections created yet. Only sections you create in your institution will appear here.</p>
             {% else %}
-                <p class="small-help">Select an existing course section for this timetable.</p>
+                <p class="small-help">Shows only the sections created by you.</p>
             {% endif %}
         </div>
+
+        <script>
+        function filterSections() {
+            const courseVal = document.getElementById("courseSelect").value;
+            const secSelect = document.getElementById("sectionSelect");
+            const options = secSelect.getElementsByTagName("option");
+            secSelect.value = "";
+            for (let i = 1; i < options.length; i++) {
+                const optCourse = options[i].getAttribute("data-course");
+                if (courseVal === "ALL" || optCourse === courseVal) {
+                    options[i].style.display = "";
+                } else {
+                    options[i].style.display = "none";
+                }
+            }
+        }
+        </script>
 
         <div class="form-group">
             <label>Teacher</label>

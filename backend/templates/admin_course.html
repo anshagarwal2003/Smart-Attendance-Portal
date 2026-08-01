@@ -96,9 +96,12 @@
                         <td><b>{{ row.subject }}</b></td>
                         <td>{{ row.start_time }} - {{ row.end_time }}</td>
                         <td>{{ row.teacher_name }} ({{ row.teacher_code }})</td>
-                        <td>
-                            <form method="post" action="/admin/delete-timetable/{{ row.id }}" onsubmit="return confirm('Delete this timetable entry?');">
-                                <button class="btn danger-btn" type="submit">Delete</button>
+                        <td style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                            <form method="post" action="/admin/extend-timetable/{{ row.id }}" style="margin: 0;">
+                                <button class="btn primary-btn" type="submit" style="padding: 6px 12px; font-size: 13px;" title="Extend Teacher Activation Window by +10 minutes">⏱️ +10m Extend</button>
+                            </form>
+                            <form method="post" action="/admin/delete-timetable/{{ row.id }}" onsubmit="return confirm('Delete this timetable entry?');" style="margin: 0;">
+                                <button class="btn danger-btn" type="submit" style="padding: 6px 12px; font-size: 13px;">Delete</button>
                             </form>
                         </td>
                     </tr>

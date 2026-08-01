@@ -409,6 +409,7 @@ def init_db():
     migrations = [
         ("timetable", "room_no", "TEXT"),
         ("timetable", "room_range", "INTEGER"),
+        ("timetable", "extension_mins", "INTEGER DEFAULT 0"),
         ("rooms", "room_lat", "REAL"),
         ("rooms", "room_lng", "REAL"),
         ("class_sessions", "timetable_id", "INTEGER"),
@@ -618,17 +619,20 @@ def teacher_dashboard():
         if existing_session:
             continue
 
-        cls_dict = dict(cls)
-        cls_dict["activation_deadline"] = class_end.strftime("%H:%M")
+        ext_mins = cls["extension_mins"] if "extension_mins" in cls.keys() and cls["extension_mins"] else 0
+        activation_deadline = class_start + timedelta(minutes=TEACHER_ACTIVATION_LIMIT_MINUTES + ext_mins)
 
-        if now < can_start_window:
+        cls_dict = dict(cls)
+        cls_dict["activation_deadline"] = activation_deadline.strftime("%H:%M")
+
+        if now < class_start:
             cls_dict["status_type"] = "UPCOMING"
             cls_dict["status_text"] = f"Upcoming at {cls['start_time']}"
             upcoming_classes.append(cls_dict)
 
-        elif can_start_window <= now <= class_end:
+        elif class_start <= now <= activation_deadline:
             cls_dict["status_type"] = "CAN_START"
-            cls_dict["status_text"] = f"Can start till {class_end.strftime('%H:%M')}"
+            cls_dict["status_text"] = f"Can start till {activation_deadline.strftime('%H:%M')}"
             can_start_classes.append(cls_dict)
 
     con.close()
@@ -827,7 +831,8 @@ def start_class(timetable_id):
         "%Y-%m-%d %H:%M"
     )
 
-    activation_deadline = class_start + timedelta(minutes=TEACHER_ACTIVATION_LIMIT_MINUTES)
+    ext_mins = class_data["extension_mins"] if "extension_mins" in class_data.keys() and class_data["extension_mins"] else 0
+    activation_deadline = class_start + timedelta(minutes=TEACHER_ACTIVATION_LIMIT_MINUTES + ext_mins)
     class_time = f"{class_data['start_time']} - {class_data['end_time']}"
     normalized_section = normalize_section(class_data["section"])
 
@@ -1756,6 +1761,12 @@ def add_timetable():
 
     rooms = con.execute("SELECT * FROM rooms ORDER BY room_no").fetchall()
     sections = get_all_sections(con)
+    course_sections_map = {}
+    for sec in sections:
+        c_name = sec.split("-")[0] if "-" in sec else "GENERAL"
+        if c_name not in course_sections_map:
+            course_sections_map[c_name] = []
+        course_sections_map[c_name].append(sec)
 
     if request.method == "POST":
         day = request.form.get("day", "").strip()
@@ -1773,6 +1784,7 @@ def add_timetable():
                 teachers=teachers,
                 rooms=rooms,
                 sections=sections,
+                course_sections_map=course_sections_map,
                 error="All fields are required"
             )
 
@@ -1783,6 +1795,7 @@ def add_timetable():
                 teachers=teachers,
                 rooms=rooms,
                 sections=sections,
+                course_sections_map=course_sections_map,
                 error="End time must be greater than start time"
             )
 
@@ -1798,6 +1811,7 @@ def add_timetable():
                 teachers=teachers,
                 rooms=rooms,
                 sections=sections,
+                course_sections_map=course_sections_map,
                 error="Invalid teacher selected"
             )
 
@@ -1813,6 +1827,7 @@ def add_timetable():
                 teachers=teachers,
                 rooms=rooms,
                 sections=sections,
+                course_sections_map=course_sections_map,
                 error="This timetable entry already exists"
             )
 
@@ -1828,6 +1843,7 @@ def add_timetable():
                 teachers=teachers,
                 rooms=rooms,
                 sections=sections,
+                course_sections_map=course_sections_map,
                 error=f"Teacher is already allotted to another class ({teacher_overlap['subject']} for {teacher_overlap['section']} from {teacher_overlap['start_time']} to {teacher_overlap['end_time']})!"
             )
 
@@ -1845,7 +1861,7 @@ def add_timetable():
         return redirect(url_for("admin_dashboard"))
 
     con.close()
-    return render_template("add_timetable.html", teachers=teachers, rooms=rooms, sections=sections)
+    return render_template("add_timetable.html", teachers=teachers, rooms=rooms, sections=sections, course_sections_map=course_sections_map)
 
 @app.route("/admin/add-room", methods=["GET", "POST"])
 def add_room():
@@ -1897,6 +1913,24 @@ def delete_timetable(timetable_id):
     con.commit()
     con.close()
 
+    return redirect(url_for("admin_dashboard"))
+
+
+@app.route("/admin/extend-timetable/<int:timetable_id>", methods=["POST"])
+def extend_timetable(timetable_id):
+    if "admin_id" not in session:
+        return redirect(url_for("admin_login"))
+
+    con = get_db()
+    con.execute("""
+        UPDATE timetable
+        SET extension_mins = COALESCE(extension_mins, 0) + 10
+        WHERE id = ?
+    """, (timetable_id,))
+    con.commit()
+    con.close()
+
+    flash("Teacher activation window successfully extended by +10 minutes!", "success")
     return redirect(url_for("admin_dashboard"))
 
 @app.route("/admin/add-course", methods=["GET", "POST"])
